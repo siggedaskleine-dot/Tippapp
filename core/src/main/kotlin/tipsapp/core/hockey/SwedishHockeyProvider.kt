@@ -81,6 +81,10 @@ class SwedishHockeyProvider(
         val standings = runCatching { parseStandings(get("statistics-v2/league-standings", mapOf("ssgtUuid" to ssgtUuid), ttl = 3 * HOUR)) }
             .onFailure { warnings += "tabell: ${it.message}" }.getOrDefault(emptyList())
 
+        if (all.isNotEmpty() && all.all { it.start == null }) {
+            val raw = (scheduleJson["gameInfo"] ?: scheduleJson).arr().firstOrNull()
+            warnings += "kunde inte läsa starttider, exempel: ${raw.toString().take(400)}"
+        }
         val today = all.filter { g -> g.start?.atZoneSameInstant(zone)?.toLocalDate() == date }
         val finished = all.filter { it.status == MatchStatus.FINISHED }
 
@@ -133,7 +137,7 @@ class SwedishHockeyProvider(
                 val state = g["state"].str() ?: g.path("gameInfo", "state").str()
                 return ParsedGame(
                     uuid = g["uuid"].str() ?: g.path("gameInfo", "gameUuid").str() ?: "?",
-                    start = startStr?.let { runCatching { OffsetDateTime.parse(it) }.getOrNull() },
+                    start = startStr?.let(::parseTime),
                     status = mapState(state),
                     home = team(home), away = team(away),
                     homeScore = home["score"].int(), awayScore = away["score"].int(),
@@ -146,6 +150,20 @@ class SwedishHockeyProvider(
 
     companion object {
         private const val MIN = 60_000L
+        private val STHLM: ZoneId = ZoneId.of("Europe/Stockholm")
+
+        /** Tider kan komma som ISO med zon, som UTC-instant eller utan zon (då svensk tid). */
+        fun parseTime(s: String): OffsetDateTime? {
+            val t = s.trim()
+            runCatching { return OffsetDateTime.parse(t) }
+            runCatching { return java.time.Instant.parse(t).atZone(STHLM).toOffsetDateTime() }
+            runCatching { return java.time.LocalDateTime.parse(t.replace(' ', 'T')).atZone(STHLM).toOffsetDateTime() }
+            t.toLongOrNull()?.let { n ->
+                val ms = if (n > 10_000_000_000L) n else n * 1000
+                return java.time.Instant.ofEpochMilli(ms).atZone(STHLM).toOffsetDateTime()
+            }
+            return null
+        }
         private const val HOUR = 60 * MIN
 
         fun mapState(s: String?): MatchStatus = when (s) {
