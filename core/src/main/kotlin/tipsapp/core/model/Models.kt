@@ -79,7 +79,7 @@ data class OddsMarket(
     val outcomes: List<OddsOutcome>,
 )
 
-/** Vad "folket" spelar på, fylls i av [tipsapp.core.publicbets.PublicBettingSource] i steg 3. */
+/** Vad andra spelar på, t.ex. Svenska folkets streck eller tidningarnas tips. */
 @Serializable
 data class PublicBettingShare(
     val source: String,

@@ -11,6 +11,11 @@ import tipsapp.core.hockey.SwedishHockeyProvider
 import tipsapp.core.hockey.SwedishLeagueConfig
 import tipsapp.core.http.FileCache
 import tipsapp.core.http.JsonHttp
+import tipsapp.core.kambi.HockeyAllsvenskanProvider
+import tipsapp.core.kambi.KambiHockey
+import tipsapp.core.kambi.KambiHockeyOdds
+import tipsapp.core.svenskaspel.SvenskaSpelFolket
+import tipsapp.core.ai.AiCommentWriter
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
@@ -36,17 +41,20 @@ fun main(args: Array<String>) {
     val key = System.getenv("APIFOOTBALL_KEY") ?: readSecret("apifootball.key")
     val http = JsonHttp()
     val cache = FileCache(File(System.getProperty("user.home"), ".tipsapp/cache"))
+    val kambi = KambiHockey(http, cache)
 
     val sources = buildList<MatchSource> {
         if (key.isNullOrBlank()) System.err.println("Varning: ingen api-football-nyckel, hoppar över fotboll.")
         else add(FootballProvider(ApiFootballClient(key, http, cache), FootballConfig(callBudget = budget)))
         add(NhlProvider(http, cache))
         add(SwedishHockeyProvider(SwedishLeagueConfig.SHL, http, cache))
+        add(HockeyAllsvenskanProvider(kambi))
     }.filter { only == null || it.name in only }
+    val enrichers = listOf(KambiHockeyOdds(kambi), SvenskaSpelFolket(http, cache))
 
     if (sources.isEmpty()) { System.err.println("Inga källor valda."); exitProcess(1) }
 
-    val day = DailyFetcher(sources).fetch(date)
+    val day = DailyFetcher(sources, enrichers).fetch(date)
     out.parentFile?.mkdirs()
     out.writeText(DailyFetcher.toJson(day))
 
@@ -64,11 +72,18 @@ fun main(args: Array<String>) {
     val byId = day.matches.associateBy { it.id }
     val top = Analyzer.topPicks(analyses, 15)
     println("\nDagens bästa spel (${top.size} av ${analyses.size} analyserade matcher):")
+    val ai = System.getenv("ANTHROPIC_API_KEY")?.takeIf { it.isNotBlank() && "ai" in opts }?.let { AiCommentWriter(it) }
     top.forEachIndexed { i, a ->
         val m = byId.getValue(a.matchId)
         println("${i + 1}. ${m.kickoff.take(16).replace('T', ' ')}  ${m.league.name}: ${m.home.name} – ${m.away.name}")
         println("   ${a.comment}")
+        if (ai != null && i < 3) runCatching { ai.write(m, a) }.onSuccess { println("   AI: $it") }.onFailure { println("   AI-fel: ${it.message}") }
     }
+    val hockey = analyses.filter { byId.getValue(it.matchId).sport == tipsapp.core.model.Sport.HOCKEY }.sortedByDescending { it.score }.take(5)
+    if (hockey.isNotEmpty()) println("\nHockey, starkaste förslagen:")
+    hockey.forEach { a -> val m = byId.getValue(a.matchId); println(" - ${m.league.name}: ${m.home.name} – ${m.away.name}: ${a.pick.selection}${a.pick.odds?.let { " @ $it" } ?: ""}") }
+    val crowd = day.matches.count { it.publicBetting.isNotEmpty() }
+    println("Matcher med vad andra spelar på: $crowd")
     File(out.parentFile, "analys-$date.json").writeText(DailyFetcher.json.encodeToString(kotlinx.serialization.builtins.ListSerializer(tipsapp.core.analysis.MatchAnalysis.serializer()), analyses))
 }
 

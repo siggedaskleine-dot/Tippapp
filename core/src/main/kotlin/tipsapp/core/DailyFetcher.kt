@@ -4,7 +4,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import tipsapp.core.model.MatchDay
 import tipsapp.core.model.SourceReport
-import tipsapp.core.publicbets.PublicBettingSource
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
@@ -14,7 +13,7 @@ import java.time.OffsetDateTime
  */
 class DailyFetcher(
     private val sources: List<MatchSource>,
-    private val publicBetting: List<PublicBettingSource> = emptyList(),
+    private val enrichers: List<MatchEnricher> = emptyList(),
 ) {
     fun fetch(date: LocalDate): MatchDay {
         val reports = mutableListOf<SourceReport>()
@@ -30,13 +29,13 @@ class DailyFetcher(
             }
         }
         var matches = all
-        for (pb in publicBetting) {
+        for (en in enrichers) {
             try {
-                val shares = pb.fetch(matches)
-                matches = matches.map { m -> shares[m.id]?.let { m.copy(publicBetting = m.publicBetting + it) } ?: m }
-                reports += SourceReport(pb.name, true, shares.size)
+                val (updated, msg) = en.enrich(matches, date)
+                matches = updated
+                reports += SourceReport(en.name, true, 0, message = msg)
             } catch (e: Exception) {
-                reports += SourceReport(pb.name, false, 0, message = e.message)
+                reports += SourceReport(en.name, false, 0, message = "${e::class.simpleName}: ${e.message}")
             }
         }
         return MatchDay(

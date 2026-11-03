@@ -9,6 +9,10 @@ object Commentary {
     private fun d(x: Double) = String.format(Locale.forLanguageTag("sv-SE"), "%.2f", x)
     private fun d1(x: Double) = String.format(Locale.forLanguageTag("sv-SE"), "%.1f", x)
 
+    private fun crowdKey(p: Pick): String? = if (p.market != "1X2") null else when {
+        p.selection.startsWith("1 ") -> "1"; p.selection.startsWith("X") -> "X"; p.selection.startsWith("2 ") -> "2"; else -> null
+    }
+
     fun write(m: Match, pick: Pick, goals: Pair<Double, Double>?, confidence: Int): String {
         val s = mutableListOf<String>()
         val head = buildString {
@@ -41,9 +45,15 @@ object Commentary {
         }
         goals?.let { s += "Förväntade mål: ${d1(it.first)}–${d1(it.second)}." }
         m.extras["apiAdvice"]?.let { s += "api-footballs prognos: $it." }
-        if (m.publicBetting.isNotEmpty()) {
-            val pb = m.publicBetting.first()
-            s += "Folket (${pb.source}): " + pb.shares.entries.joinToString(", ") { "${it.key} ${it.value.roundToInt()} %" } + "."
+        for (pb in m.publicBetting.take(2)) {
+            s += "${pb.source}: " + pb.shares.entries.joinToString(", ") { "${it.key} ${it.value.roundToInt()} %" } + "."
+        }
+        crowdKey(pick)?.let { k ->
+            m.publicBetting.firstOrNull { it.source.startsWith("Svenska folket") }?.shares?.get(k)?.let { crowd ->
+                val diff = pick.probability * 100 - crowd
+                if (diff >= 8) s += "Folket underskattar det här utfallet (${crowd.roundToInt()} % mot appens ${Analyzer.pct(pick.probability)})."
+                else if (diff <= -15) s += "Obs: folket är mer säkra än appen här (${crowd.roundToInt()} %), så spelet är populärt."
+            }
         }
         s += "Säkerhet: $confidence av 5."
         return s.joinToString(" ")

@@ -17,7 +17,9 @@ gemensam modell (`MatchDay` → `Match`) som analysmotorn (steg 2) och Android-a
 | Fotboll | alla ligor | api-football v3 (din Pro-nyckel) | ja | ja | ja | ja |
 | Hockey | NHL | NHL:s öppna API, api-web.nhle.com | ja, partner-odds (bästa försök) | ja | ja | ja (2 säsonger) |
 | Hockey | SHL | shl.se:s publika API (`/api/sports-v2`, `/api/statistics-v2`) | nej | ja | ja | ja (innevarande säsong) |
-| Hockey | Hockeyallsvenskan | ej klar, se nedan | – | – | – | – |
+| Hockey | Hockeyallsvenskan | Kambi/Unibets öppna oddsflöde | ja | nej | nej | nej |
+| Hockey | odds SHL/NHL | Kambi/Unibets öppna oddsflöde | ja (1X2, vinnare inkl. övertid, över/under) | – | – | – |
+| Fotboll | vad andra spelar på | Svenska Spel (Stryk-, Europa-, Topptipset) | Svenska folkets streck + tio tidningars tips | – | – | – |
 
 ### api-football och kvoten
 En hämtning gör: 1 anrop `/fixtures?date=`, N anrop `/odds?date=&page=` (hela dagens odds), 1 anrop
@@ -28,14 +30,18 @@ tidigast avspark* tills budgeten (`--budget`, standard 2 500 av 7 500/dygn) är 
 Kvar-kvoten läses från svarshuvudet och visas i rapporten.
 
 ### Hockeyallsvenskan
-hockeyallsvenskan.se är byggd på en annan plattform än shl.se och har inget dokumenterat API.
-`SwedishHockeyProvider` tar en `SwedishLeagueConfig`, så om Hockeyallsvenskan visar sig ha samma
-API räcker en ny konfiguration. Annars behövs en egen källa. Odds för SHL och Hockeyallsvenskan
-kopplas på från en oddskälla i ett senare steg.
+hockeyallsvenskan.se har inget öppet API, så matcher och odds tas från Kambis oddsflöde
+(`HockeyAllsvenskanProvider`). Form och tabell saknas för den ligan.
 
-### Vad andra spelar på (steg 3)
-`PublicBettingSource` är gränssnittet för tipssidor och spelfördelning. `DailyFetcher` anropar
-alla registrerade källor och lägger resultatet i `Match.publicBetting`.
+### Vad andra spelar på
+`MatchEnricher` lägger data på redan hämtade matcher. `SvenskaSpelFolket` hämtar Svenska folkets
+streckfördelning och tio tidningars tips från Svenska Spels kuponger och kopplar dem till rätt
+match via lagnamn och starttid (`TeamMatcher`). `KambiHockeyOdds` lägger på hockeyodds.
+
+### AI-kommentarer
+`AiCommentWriter` skriver motiveringen med Claude (Anthropic Java SDK) när en Anthropic-nyckel
+finns i appens inställningar. Dagens bästa spel får AI-text automatiskt, övriga matcher på
+begäran. Utan nyckel används den inbyggda mallen.
 
 ## API-nyckeln
 Nyckeln committas aldrig. Ange den på något av dessa sätt:

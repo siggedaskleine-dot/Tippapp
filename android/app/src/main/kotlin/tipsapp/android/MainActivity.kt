@@ -77,6 +77,7 @@ private fun App(vm: MainViewModel) {
                 Screen.entries.forEach { t -> Tab(selected = tab == t, onClick = { tab = t }, text = { Text(t.title) }) }
             }
             state.error?.let { Text("Fel: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp)) }
+            state.aiError?.let { Text("AI: $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }
             if (!state.hasApiKey && tab != Screen.SETTINGS) {
                 Text(
                     "Lägg in din api-football-nyckel under Inställningar för att få fotbollen. Hockeyn fungerar utan nyckel.",
@@ -84,9 +85,9 @@ private fun App(vm: MainViewModel) {
                 )
             }
             when (tab) {
-                Screen.TOP -> TopList(state)
-                Screen.FOOTBALL -> MatchList(state.matches.filter { it.match.sport == Sport.FOOTBALL }, state.loading)
-                Screen.HOCKEY -> MatchList(state.matches.filter { it.match.sport == Sport.HOCKEY }, state.loading)
+                Screen.TOP -> TopList(state, vm)
+                Screen.FOOTBALL -> MatchList(state.matches.filter { it.match.sport == Sport.FOOTBALL }, state, vm)
+                Screen.HOCKEY -> MatchList(state.matches.filter { it.match.sport == Sport.HOCKEY }, state, vm)
                 Screen.SETTINGS -> Settings(state, vm)
             }
         }
@@ -94,36 +95,34 @@ private fun App(vm: MainViewModel) {
 }
 
 @Composable
-private fun TopList(state: UiState) {
-    val top = remember(state.matches) {
-        state.matches.filter { val ev = it.analysis?.pick?.expectedValue; ev != null && ev > 0 && it.match.status == MatchStatus.SCHEDULED }
-            .sortedByDescending { it.analysis!!.score }.take(15)
-    }
+private fun TopList(state: UiState, vm: MainViewModel) {
+    val top = remember(state.matches) { topPicks(state.matches).take(15) }
     if (top.isEmpty()) {
         Empty(if (state.loading) "Hämtar dagens matcher …" else "Inga spel med tydligt värde hittades ännu. Tryck på uppdatera.")
         return
     }
     LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(top, key = { it.match.id }) { MatchCard(it, expandedByDefault = true) }
+        items(top, key = { it.match.id }) { MatchCard(it, state, vm, expandedByDefault = true) }
     }
 }
 
 @Composable
-private fun MatchList(list: List<AnalyzedMatch>, loading: Boolean) {
-    if (list.isEmpty()) { Empty(if (loading) "Hämtar …" else "Inga matcher idag."); return }
+private fun MatchList(list: List<AnalyzedMatch>, state: UiState, vm: MainViewModel) {
+    if (list.isEmpty()) { Empty(if (state.loading) "Hämtar …" else "Inga matcher idag."); return }
     val grouped = remember(list) { list.groupBy { "${it.match.league.country?.let { c -> "$c · " } ?: ""}${it.match.league.name}" }.toSortedMap() }
     LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         grouped.forEach { (league, ms) ->
             item(key = "h:$league") { Text(league, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
-            items(ms, key = { it.match.id }) { MatchCard(it, expandedByDefault = false) }
+            items(ms, key = { it.match.id }) { MatchCard(it, state, vm, expandedByDefault = false) }
         }
     }
 }
 
 @Composable
-private fun MatchCard(am: AnalyzedMatch, expandedByDefault: Boolean) {
+private fun MatchCard(am: AnalyzedMatch, state: UiState, vm: MainViewModel, expandedByDefault: Boolean) {
     val m = am.match; val a = am.analysis
     var expanded by remember { mutableStateOf(expandedByDefault) }
+    val ai = state.aiComments[m.id]
     ElevatedCard(Modifier.fillMaxWidth().clickable { expanded = !expanded }) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -146,9 +145,26 @@ private fun MatchCard(am: AnalyzedMatch, expandedByDefault: Boolean) {
                     Text("★".repeat(a.confidence) + "☆".repeat(5 - a.confidence), style = MaterialTheme.typography.labelMedium)
                 }
                 Text(a.pick.market, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                m.publicBetting.firstOrNull()?.let { pb ->
+                    Text(
+                        "${pb.source}: " + pb.shares.entries.joinToString("  ") { "${it.key} ${it.value.toInt()} %" },
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
                 if (expanded) {
                     Spacer(Modifier.height(6.dp))
-                    Text(a.comment, style = MaterialTheme.typography.bodySmall)
+                    if (ai != null) {
+                        Text("AI-kommentar", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(ai, style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(4.dp))
+                        Text(a.comment, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    } else {
+                        Text(a.comment, style = MaterialTheme.typography.bodySmall)
+                        if (state.hasAnthropicKey) {
+                            if (m.id in state.aiBusy) Text("AI skriver …", style = MaterialTheme.typography.labelSmall)
+                            else TextButton(onClick = { vm.requestAi(am) }) { Text("Skriv AI-kommentar") }
+                        }
+                    }
                 }
             } else if (expanded) {
                 Text("Ingen analys (för lite data eller matchen är spelad).", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -160,6 +176,7 @@ private fun MatchCard(am: AnalyzedMatch, expandedByDefault: Boolean) {
 @Composable
 private fun Settings(state: UiState, vm: MainViewModel) {
     var key by remember { mutableStateOf("") }
+    var aiKey by remember { mutableStateOf("") }
     var budget by remember(state.budget) { mutableStateOf(state.budget.toString()) }
     var saved by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -170,6 +187,15 @@ private fun Settings(state: UiState, vm: MainViewModel) {
                 visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
         }
         item {
+            Text("Anthropic-nyckel för AI-kommentarer (valfri)", style = MaterialTheme.typography.titleSmall)
+            Text(
+                if (state.hasAnthropicKey) "En nyckel är sparad. AI skriver kommentarer till dagens bästa spel, och till andra matcher när du trycker." else "Utan nyckel skriver appen kommentarerna själv. Nyckel skapas på console.anthropic.com.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedTextField(aiKey, { aiKey = it; saved = false }, label = { Text("sk-ant-…") }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        }
+        item {
             Text("Max anrop per uppdatering", style = MaterialTheme.typography.titleSmall)
             Text("Pro-planen ger 7 500 anrop per dygn. 300 tar ungefär en minut och täcker matcherna med odds i de viktigaste ligorna. Svaren sparas, så nästa uppdatering samma dag blir billigare.", style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(budget, { budget = it.filter(Char::isDigit); saved = false }, singleLine = true,
@@ -177,10 +203,10 @@ private fun Settings(state: UiState, vm: MainViewModel) {
         }
         item {
             Button(onClick = {
-                vm.saveSettings(key.takeIf { it.isNotBlank() }, budget.toIntOrNull() ?: 300)
-                key = ""
+                vm.saveSettings(key.takeIf { it.isNotBlank() }, budget.toIntOrNull() ?: 300, aiKey.takeIf { it.isNotBlank() })
+                key = ""; aiKey = ""
                 saved = true
-            }, enabled = key.isNotBlank() || state.hasApiKey) { Text("Spara") }
+            }) { Text("Spara") }
             if (saved) Text("Sparat. Tryck på uppdatera uppe till höger.", style = MaterialTheme.typography.bodySmall)
         }
         item {

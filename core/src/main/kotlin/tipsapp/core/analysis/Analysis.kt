@@ -173,19 +173,42 @@ object Analyzer {
     }
 
     private fun hockeyCandidates(m: Match, mx: Array<DoubleArray>?): List<Pick> {
-        val ml = "Moneyline (inkl. övertid)"
-        val fair = fairProbs(m, ml)
+        val out = mutableListOf<Pick>()
         val pReg = mx?.let { Triple(it.sum { h, a -> h > a }, it.sum { h, a -> h == a }, it.sum { h, a -> h < a }) }
-        // oavgjort efter 60 min avgörs ungefär 52/48 till hemmalaget
+
+        // 1X2 efter full tid (60 min), om oddset finns
+        fairProbs(m, "Match Winner")?.let { fair ->
+            val h = mix(fair["Home"] to 0.6, pReg?.first to 0.4); val d = mix(fair["Draw"] to 0.6, pReg?.second to 0.4)
+            val a = mix(fair["Away"] to 0.6, pReg?.third to 0.4)
+            if (h != null && d != null && a != null) {
+                val t = h + d + a
+                out += pick(m, "Match Winner", "Home", "1X2 (full tid)", "1 (${m.home.name})", h / t)
+                out += pick(m, "Match Winner", "Draw", "1X2 (full tid)", "X (oavgjort efter 60 min)", d / t)
+                out += pick(m, "Match Winner", "Away", "1X2 (full tid)", "2 (${m.away.name})", a / t)
+            }
+        }
+
+        // Vinnare inklusive övertid; oavgjort efter 60 min avgörs ungefär 52/48 till hemmalaget
+        val ml = "Moneyline (inkl. övertid)"
+        val fairMl = fairProbs(m, ml)
         val modelHome = pReg?.let { it.first + it.second * 0.52 }
-        val h = mix(fair?.get("Home") to 0.6, modelHome to 0.4) ?: return emptyList()
-        return listOf(
-            pick(m, ml, "Home", "Vinnare inkl. övertid", "1 (${m.home.name})", h),
-            pick(m, ml, "Away", "Vinnare inkl. övertid", "2 (${m.away.name})", 1 - h),
-        ) + (mx?.let { x ->
-            val over = x.sum { a, b -> a + b >= 6 }
-            listOf(Pick("Över/under 5,5 mål", "Över 5,5 mål", over), Pick("Över/under 5,5 mål", "Under 5,5 mål", 1 - over))
-        } ?: emptyList())
+        mix(fairMl?.get("Home") to 0.6, modelHome to 0.4)?.let { h ->
+            out += pick(m, ml, "Home", "Vinnare inkl. övertid", "1 (${m.home.name})", h)
+            out += pick(m, ml, "Away", "Vinnare inkl. övertid", "2 (${m.away.name})", 1 - h)
+        }
+
+        // Över/under: använd bookmakerns linje om den finns, annars 5,5
+        val totals = m.odds.filter { it.market == "Total Goals" }
+        val lineLabel = totals.flatMap { it.outcomes }.firstOrNull { it.label.startsWith("Over") }?.label?.removePrefix("Over ")
+        val line = lineLabel?.toDoubleOrNull() ?: 5.5
+        val modelOver = mx?.sum { a, b -> a + b > line }
+        val fairOu = fairProbs(m, "Total Goals")
+        mix(fairOu?.get("Over ${lineLabel ?: "5.5"}") to 0.6, modelOver to 0.4)?.let { over ->
+            val l = lineLabel ?: "5.5"; val sv = l.replace('.', ',')
+            out += pick(m, "Total Goals", "Over $l", "Över/under $sv mål", "Över $sv mål", over)
+            out += pick(m, "Total Goals", "Under $l", "Över/under $sv mål", "Under $sv mål", 1 - over)
+        }
+        return out
     }
 
     internal fun pct(p: Double) = "${(p * 100).roundToInt()} %"
