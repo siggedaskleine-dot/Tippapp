@@ -41,6 +41,8 @@ data class MatchAnalysis(
  * och formen, jämför med bästa odds och väljer spelet med bäst värde.
  */
 object Analyzer {
+    /** Minsta spelvärde för att räknas som "dagens bästa spel" (3 %). */
+    const val MIN_EDGE = 0.03
 
     fun analyze(m: Match): MatchAnalysis? {
         if (m.status == MatchStatus.FINISHED || m.status == MatchStatus.CANCELLED || m.status == MatchStatus.POSTPONED) return null
@@ -64,7 +66,7 @@ object Analyzer {
 
     /** Dagens bästa spel: matcher med odds och positivt värde först. */
     fun topPicks(analyses: List<MatchAnalysis>, n: Int = 10): List<MatchAnalysis> =
-        analyses.filter { (it.pick.expectedValue ?: -1.0) > 0 && it.pick.odds != null }
+        analyses.filter { (it.pick.expectedValue ?: -1.0) >= MIN_EDGE && it.pick.odds != null }
             .sortedByDescending { it.score }.take(n)
 
     // ---------- sannolikheter ----------
@@ -188,7 +190,7 @@ object Analyzer {
             if (fh != null && fd != null && fa != null) {
                 val marketShare = fh / (fh + fa)
                 val modelShare = pReg?.let { it.first / (it.first + it.third) }
-                val share = mix(marketShare to 0.7, modelShare to 0.3)!!
+                val share = mix(marketShare to 0.8, modelShare to 0.2)!!
                 out += pick(m, "Match Winner", "Home", "1X2 (full tid)", "1 (${m.home.name})", (1 - fd) * share)
                 out += pick(m, "Match Winner", "Draw", "1X2 (full tid)", "X (oavgjort efter 60 min)", fd)
                 out += pick(m, "Match Winner", "Away", "1X2 (full tid)", "2 (${m.away.name})", (1 - fd) * (1 - share))
@@ -199,7 +201,7 @@ object Analyzer {
         val ml = "Moneyline (inkl. övertid)"
         val fairMl = fairProbs(m, ml)
         val modelHome = pReg?.let { it.first + it.second * 0.52 }
-        mix(fairMl?.get("Home") to 0.7, modelHome to 0.3)?.let { h ->
+        mix(fairMl?.get("Home") to 0.8, modelHome to 0.2)?.let { h ->
             out += pick(m, ml, "Home", "Vinnare inkl. övertid", "1 (${m.home.name})", h)
             out += pick(m, ml, "Away", "Vinnare inkl. övertid", "2 (${m.away.name})", 1 - h)
         }

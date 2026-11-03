@@ -93,5 +93,5 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
 /** Dagens bästa spel: positivt spelvärde, ej startade, högst poäng först. */
 fun topPicks(list: List<AnalyzedMatch>): List<AnalyzedMatch> =
-    list.filter { val ev = it.analysis?.pick?.expectedValue; ev != null && ev > 0 && it.match.status == tipsapp.core.model.MatchStatus.SCHEDULED }
+    list.filter { val ev = it.analysis?.pick?.expectedValue; ev != null && ev >= tipsapp.core.analysis.Analyzer.MIN_EDGE && it.match.status == tipsapp.core.model.MatchStatus.SCHEDULED }
         .sortedByDescending { it.analysis!!.score }
