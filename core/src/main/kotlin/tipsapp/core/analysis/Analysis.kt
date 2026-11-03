@@ -56,7 +56,7 @@ object Analyzer {
         }
         val dataPoints = listOf(m.odds.isNotEmpty(), m.homeForm != null, m.homeStanding != null, m.headToHead.isNotEmpty(), est != null).count { it }
         val ev = pick.expectedValue ?: 0.0
-        val conf = (1 + (dataPoints - 1).coerceAtLeast(0) * 0.5 + ev * 15 + (pick.probability - 0.45) * 4)
+        val conf = (1 + dataPoints * 0.2 + ev.coerceAtMost(0.25) * 10 + (pick.probability - 0.45) * 4)
             .roundToInt().coerceIn(1, 5)
         val score = (pick.expectedValue ?: -0.05) * 2 + pick.probability * 0.5 + dataPoints * 0.03
         return MatchAnalysis(m.id, pick, candidates.filter { it != pick }.sortedByDescending { it.probability }.take(5), conf, Commentary.write(m, pick, est, conf), score)
@@ -146,10 +146,15 @@ object Analyzer {
     private fun footballCandidates(m: Match, mx: Array<DoubleArray>?): List<Pick> {
         val fair = fairProbs(m, "Match Winner")
         fun api(k: String) = m.extras[k]?.removeSuffix("%")?.toDoubleOrNull()?.div(100)
-        val pH = mx?.sum { h, a -> h > a }; val pD = mx?.sum { h, a -> h == a }; val pA = mx?.sum { h, a -> h < a }
-        val h = mix(fair?.get("Home") to 0.55, pH to 0.25, api("apiPercentHome") to 0.20)
-        val d = mix(fair?.get("Draw") to 0.55, pD to 0.25, api("apiPercentDraw") to 0.20)
-        val a = mix(fair?.get("Away") to 0.55, pA to 0.25, api("apiPercentAway") to 0.20)
+        // Poisson underskattar oavgjort något; justera upp och normalisera
+        val pD = mx?.sum { h, a -> h == a }?.times(1.12)
+        val rest = pD?.let { 1 - it }
+        val rawH = mx?.sum { h, a -> h > a }; val rawA = mx?.sum { h, a -> h < a }
+        val pH = if (rawH != null && rawA != null && rest != null) rest * rawH / (rawH + rawA) else null
+        val pA = if (rawH != null && rawA != null && rest != null) rest * rawA / (rawH + rawA) else null
+        val h = mix(fair?.get("Home") to 0.65, pH to 0.20, api("apiPercentHome") to 0.15)
+        val d = mix(fair?.get("Draw") to 0.65, pD to 0.20, api("apiPercentDraw") to 0.15)
+        val a = mix(fair?.get("Away") to 0.65, pA to 0.20, api("apiPercentAway") to 0.15)
         val out = mutableListOf<Pick>()
         if (h != null && d != null && a != null) {
             val t = h + d + a
@@ -176,15 +181,17 @@ object Analyzer {
         val out = mutableListOf<Pick>()
         val pReg = mx?.let { Triple(it.sum { h, a -> h > a }, it.sum { h, a -> h == a }, it.sum { h, a -> h < a }) }
 
-        // 1X2 efter full tid (60 min), om oddset finns
+        // 1X2 efter full tid (60 min). Poisson underskattar oavgjort i hockey, så oavgjort-
+        // sannolikheten tas från marknaden och modellen får bara fördela resten mellan lagen.
         fairProbs(m, "Match Winner")?.let { fair ->
-            val h = mix(fair["Home"] to 0.6, pReg?.first to 0.4); val d = mix(fair["Draw"] to 0.6, pReg?.second to 0.4)
-            val a = mix(fair["Away"] to 0.6, pReg?.third to 0.4)
-            if (h != null && d != null && a != null) {
-                val t = h + d + a
-                out += pick(m, "Match Winner", "Home", "1X2 (full tid)", "1 (${m.home.name})", h / t)
-                out += pick(m, "Match Winner", "Draw", "1X2 (full tid)", "X (oavgjort efter 60 min)", d / t)
-                out += pick(m, "Match Winner", "Away", "1X2 (full tid)", "2 (${m.away.name})", a / t)
+            val fh = fair["Home"]; val fd = fair["Draw"]; val fa = fair["Away"]
+            if (fh != null && fd != null && fa != null) {
+                val marketShare = fh / (fh + fa)
+                val modelShare = pReg?.let { it.first / (it.first + it.third) }
+                val share = mix(marketShare to 0.7, modelShare to 0.3)!!
+                out += pick(m, "Match Winner", "Home", "1X2 (full tid)", "1 (${m.home.name})", (1 - fd) * share)
+                out += pick(m, "Match Winner", "Draw", "1X2 (full tid)", "X (oavgjort efter 60 min)", fd)
+                out += pick(m, "Match Winner", "Away", "1X2 (full tid)", "2 (${m.away.name})", (1 - fd) * (1 - share))
             }
         }
 
@@ -192,7 +199,7 @@ object Analyzer {
         val ml = "Moneyline (inkl. övertid)"
         val fairMl = fairProbs(m, ml)
         val modelHome = pReg?.let { it.first + it.second * 0.52 }
-        mix(fairMl?.get("Home") to 0.6, modelHome to 0.4)?.let { h ->
+        mix(fairMl?.get("Home") to 0.7, modelHome to 0.3)?.let { h ->
             out += pick(m, ml, "Home", "Vinnare inkl. övertid", "1 (${m.home.name})", h)
             out += pick(m, ml, "Away", "Vinnare inkl. övertid", "2 (${m.away.name})", 1 - h)
         }
