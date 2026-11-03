@@ -41,8 +41,14 @@ class NhlProvider(
         val standings = runCatching { parseStandings(get("v1/standings/now", 3 * HOUR)) }
             .onFailure { warnings += "tabell: ${it.message}" }.getOrDefault(emptyList())
 
-        val odds = runCatching { parseOdds(get("v1/partner-game/$oddsCountry/now", 30 * MIN)) }
-            .onFailure { warnings += "odds: ${it.message}" }.getOrDefault(emptyMap())
+        // Odds från NHL:s partners. Saknas svenska odds provas USA (amerikanska odds räknas om).
+        var odds = emptyMap<String, List<OddsMarket>>()
+        for (country in listOf(oddsCountry, "US").distinct()) {
+            odds = runCatching { parseOdds(get("v1/partner-game/$country/now", 30 * MIN)) }
+                .onFailure { warnings += "odds $country: ${it.message}" }.getOrDefault(emptyMap())
+            if (odds.values.any { it.isNotEmpty() }) break
+        }
+        if (odds.values.none { it.isNotEmpty() }) warnings += "inga odds från NHL:s partners"
 
         val teamGames = HashMap<String, List<JsonElement>>()
         fun seasonGames(abbrev: String, season: String?): List<JsonElement> =

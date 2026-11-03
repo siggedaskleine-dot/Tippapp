@@ -104,6 +104,10 @@ class SwedishHockeyProvider(
             )
         }
         if (all.isEmpty()) warnings += "schemat var tomt"
+        else if (today.isEmpty()) {
+            val next = all.mapNotNull { it.start }.filter { it.atZoneSameInstant(zone).toLocalDate() > date }.minOrNull()
+            warnings += "inga matcher idag (${all.size} i säsongens schema, nästa: ${next?.atZoneSameInstant(zone)?.toLocalDate() ?: "okänt"})"
+        }
         return SourceResult(name, matches, callsUsed = calls, warnings = warnings)
     }
 
