@@ -1,0 +1,51 @@
+name: Bygg APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Tester (datagrund och analys)
+        run: ./gradlew :core:test --no-daemon
+
+      - name: Bygg APK
+        env:
+          TIPSAPP_KEYSTORE_B64: ${{ secrets.TIPSAPP_KEYSTORE_B64 }}
+          TIPSAPP_KEYSTORE_PASSWORD: ${{ secrets.TIPSAPP_KEYSTORE_PASSWORD }}
+        run: ./gradlew -p android :app:assembleRelease --no-daemon
+
+      - name: Döp om APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk dagens-tips.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dagens-tips-apk
+          path: dagens-tips.apk
+
+      - name: Publicera som senaste version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete senaste --yes --cleanup-tag || true
+          gh release create senaste dagens-tips.apk \
+            --title "Dagens tips (bygge ${GITHUB_RUN_NUMBER})" \
+            --notes "Senaste versionen av appen. Ladda ner dagens-tips.apk på telefonen och installera." \
+            --latest

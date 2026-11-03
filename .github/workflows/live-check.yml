@@ -1,0 +1,33 @@
+name: Hämta dagens matcher
+
+# Kör datagrunden och analysen mot de riktiga källorna och visar resultatet i körningens sammanfattning.
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: Max antal api-football-anrop
+        default: "150"
+  push:
+    branches: [main]
+    paths: ["core/**", "cli/**", ".github/workflows/live-check.yml"]
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Hämta och analysera
+        env:
+          APIFOOTBALL_KEY: ${{ secrets.APIFOOTBALL_KEY }}
+        run: |
+          ./gradlew :cli:run --no-daemon -q --args="--out $PWD/out/matchday.json --budget ${{ inputs.budget || '150' }}" | tee out.txt
+          { echo '```'; cat out.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: matchday
+          path: out/
