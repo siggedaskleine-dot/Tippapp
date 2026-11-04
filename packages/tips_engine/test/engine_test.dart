@@ -249,6 +249,11 @@ void main() {
       }
     }
     for (final t in res.tips) {
+      expect(t.deepAnalysis.length, greaterThanOrEqualTo(4));
+      expect(t.homeProfile!.recent(Venue.home), isNotEmpty);
+      expect(t.homeProfile!.recent(Venue.home).every((m) => m.atHome), isTrue);
+      // ignore: avoid_print
+      print(t.deepAnalysis.map((x) => '    · $x').join('\n'));
       expect(t.streaks, isNotEmpty); // lagens egna streaks eller raden "Inga tydliga streaks"
       // ignore: avoid_print
       print('  streaks: ${t.streaks.map((s) => s.text).join(' | ')}');

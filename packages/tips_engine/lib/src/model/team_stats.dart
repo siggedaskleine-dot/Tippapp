@@ -37,6 +37,19 @@ class TeamSample {
   }
 }
 
+/// En spelad match sett från ett lags håll.
+class RecentMatch {
+  final DateTime date;
+  final String opponent;
+  final bool atHome;
+  final int goalsFor;
+  final int goalsAgainst;
+  const RecentMatch(this.date, this.opponent, this.atHome, this.goalsFor, this.goalsAgainst);
+
+  /// 'V', 'O' eller 'F'.
+  String get result => goalsFor > goalsAgainst ? 'V' : goalsFor == goalsAgainst ? 'O' : 'F';
+}
+
 class TeamProfile {
   final int teamId;
   final TeamSample all = TeamSample();
@@ -52,7 +65,16 @@ class TeamProfile {
   /// Senaste resultaten som (gjorda, insläppta) mål, nyast först.
   final List<(int, int)> results = [];
 
+  /// Senaste matcherna med motståndare och plats, nyast först.
+  final List<RecentMatch> matches = [];
+
   TeamProfile(this.teamId);
+
+  /// Senaste matcherna för en viss plats (hemma, borta eller alla).
+  List<RecentMatch> recent(Venue v, [int n = 6]) => matches
+      .where((m) => v == Venue.all || (v == Venue.home ? m.atHome : !m.atHome))
+      .take(n)
+      .toList();
 
   TeamSample sample(Venue v) => switch (v) { Venue.home => home, Venue.away => away, Venue.all => all };
 
@@ -137,6 +159,8 @@ LeagueTable buildLeagueTable(Iterable<Fixture> fixtures, {Map<int, (double, doub
     away.recentFixtureIds.add(f.id);
     home.results.add((h, a));
     away.results.add((a, h));
+    home.matches.add(RecentMatch(f.kickoff, f.away.name, true, h, a));
+    away.matches.add(RecentMatch(f.kickoff, f.home.name, false, a, h));
   }
 
   final n = done.length;

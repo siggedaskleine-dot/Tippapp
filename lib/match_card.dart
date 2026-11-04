@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:tips_engine/tips_engine.dart';
 
+import 'match_detail_page.dart';
 import 'theme.dart';
 
 Color ratingColor(TipRating r) => switch (r) {
@@ -21,8 +22,6 @@ class MatchCard extends StatefulWidget {
 }
 
 class _MatchCardState extends State<MatchCard> {
-  bool _open = false;
-
   @override
   Widget build(BuildContext context) {
     final t = widget.tip;
@@ -36,7 +35,7 @@ class _MatchCardState extends State<MatchCard> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => setState(() => _open = !_open),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MatchDetailPage(tip: t))),
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
@@ -55,7 +54,7 @@ class _MatchCardState extends State<MatchCard> {
                 children: [
                   // Liga och tid
                   Row(children: [
-                    _Logo(url: f.league.flag ?? f.league.logo, size: 16),
+                    TeamLogo(url: f.league.flag ?? f.league.logo, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -112,14 +111,13 @@ class _MatchCardState extends State<MatchCard> {
                       style: const TextStyle(color: Color(0xFFC5CCE0), fontSize: 13, height: 1.4)),
                   if (t.streaks.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    for (final s in t.streaks) _StreakRow(s),
+                    for (final s in t.streaks) StreakRow(s),
                   ],
-                  AnimatedCrossFade(
-                    duration: const Duration(milliseconds: 200),
-                    crossFadeState: _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                    firstChild: const SizedBox(width: double.infinity),
-                    secondChild: _Details(tip: t),
-                  ),
+                  const SizedBox(height: 6),
+                  const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    Text('Matchkort', style: TextStyle(color: AppColors.accent2, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.accent2, size: 18),
+                  ]),
                 ],
               ),
             ),
@@ -130,9 +128,9 @@ class _MatchCardState extends State<MatchCard> {
   }
 }
 
-class _StreakRow extends StatelessWidget {
+class StreakRow extends StatelessWidget {
   final Streak s;
-  const _StreakRow(this.s);
+  const StreakRow(this.s, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +166,7 @@ class _TeamRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(children: [
-      _Logo(url: team.logo, size: 26),
+      TeamLogo(url: team.logo, size: 26),
       const SizedBox(width: 10),
       Expanded(
         child: Text(team.name,
@@ -176,20 +174,21 @@ class _TeamRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
       ),
-      for (final r in form.reversed) _FormDot(r),
+      for (final r in form.reversed) FormDot(r),
     ]);
   }
 }
 
-class _FormDot extends StatelessWidget {
+class FormDot extends StatelessWidget {
   final String r;
-  const _FormDot(this.r);
+  final bool margin;
+  const FormDot(this.r, {super.key, this.margin = true});
 
   @override
   Widget build(BuildContext context) {
     final c = r == 'V' ? AppColors.win : r == 'O' ? AppColors.draw : AppColors.loss;
     return Container(
-      margin: const EdgeInsets.only(left: 4),
+      margin: EdgeInsets.only(left: margin ? 4 : 0),
       width: 20,
       height: 20,
       alignment: Alignment.center,
@@ -230,54 +229,10 @@ class _ProbBar extends StatelessWidget {
   }
 }
 
-class _Details extends StatelessWidget {
-  final MatchTip tip;
-  const _Details({required this.tip});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = tip.prediction;
-    final o = tip.odds;
-    String od(double? v) => v == null ? '–' : v.toStringAsFixed(2);
-    Widget cell(String label, double prob, double? odds) => Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(color: const Color(0xFF0E1428), borderRadius: BorderRadius.circular(10)),
-            child: Column(children: [
-              Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-              const SizedBox(height: 2),
-              Text('${(prob * 100).round()}%', style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text(od(odds), style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-            ]),
-          ),
-        );
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          cell('1', p.pHome, o?.home),
-          cell('X', p.pDraw, o?.draw),
-          cell('2', p.pAway, o?.away),
-          cell('Ö2.5', p.pOver25, o?.over25),
-          cell('BLGM', p.pBtts, o?.bttsYes),
-        ]),
-        const SizedBox(height: 10),
-        Text(
-          'Väntat resultat ${p.lambdaHome.toStringAsFixed(1)}–${p.lambdaAway.toStringAsFixed(1)} · '
-          'PPG ${p.ppgHome.toStringAsFixed(2)} / ${p.ppgAway.toStringAsFixed(2)}'
-          '${p.usedXg ? ' · xG med' : ' · utan xG'}',
-          style: const TextStyle(color: AppColors.muted, fontSize: 12),
-        ),
-      ]),
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
+class TeamLogo extends StatelessWidget {
   final String? url;
   final double size;
-  const _Logo({required this.url, required this.size});
+  const TeamLogo({super.key, required this.url, required this.size});
 
   @override
   Widget build(BuildContext context) {

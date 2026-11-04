@@ -178,6 +178,19 @@ class TipsEngine {
           formScoreAway: ap?.formScore() ?? 0.5,
           inOddsWindow: inWindow,
           streaks: streaks,
+          homeProfile: hp,
+          awayProfile: ap,
+          deepAnalysis: buildDeepAnalysis(
+            f: f,
+            p: p,
+            tip: tip,
+            alternatives: alts,
+            home: hp,
+            away: ap,
+            league: table.averages,
+            streaks: streaks,
+            selector: selector,
+          ),
         ));
       }
     }

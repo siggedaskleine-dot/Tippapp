@@ -1,6 +1,7 @@
 import '../api/models.dart';
 import 'predictor.dart';
 import 'streaks.dart';
+import 'team_stats.dart';
 
 enum BetType { home, draw, away, over25, bttsYes }
 
@@ -82,6 +83,13 @@ class MatchTip {
   /// Streaks och mönster, de mest anmärkningsvärda först.
   final List<Streak> streaks;
 
+  /// Lagprofilerna för matchsidan (senaste matcher, PPG hemma/borta/totalt).
+  final TeamProfile? homeProfile;
+  final TeamProfile? awayProfile;
+
+  /// Djupare analys i stycken: varför just det här spelet.
+  final List<String> deepAnalysis;
+
   const MatchTip({
     required this.fixture,
     required this.prediction,
@@ -96,6 +104,9 @@ class MatchTip {
     required this.formScoreAway,
     this.inOddsWindow = true,
     this.streaks = const [],
+    this.homeProfile,
+    this.awayProfile,
+    this.deepAnalysis = const [],
   });
 
   /// Formvärde för sortering, kopplat till tipset: hemmalagets form för 1,
@@ -133,6 +144,7 @@ class MatchTip {
         'formAway': formAway,
         'formScore': formScore,
         'inOddsWindow': inOddsWindow,
+        'deepAnalysis': deepAnalysis,
         'streaks': [for (final s in streaks) {'text': s.text, 'kind': s.kind.name}],
         'bookmaker': odds?.bookmaker,
         'prediction': prediction.toJson(),
