@@ -20,23 +20,33 @@ class TipSelector {
     this.maxOdds = 2.10,
     this.distancePenalty = 0.15,
     this.minProbability = 0.40,
+    this.marketWeight = 0.4,
   });
+
+  /// Hur mycket spelbolagets (marginalrensade) sannolikhet vägs in.
+  /// Marknaden fångar skador, avstängningar och laguttagningar som modellen
+  /// inte ser, så en blandning träffar oftare än modellen ensam.
+  final double marketWeight;
 
   bool inWindow(TipCandidate c) => c.odds >= minOdds && c.odds <= maxOdds && c.probability >= minProbability;
 
   List<TipCandidate> candidates(Prediction p, MatchOdds? o) {
     final hasBook = o != null && !o.isEmpty;
-    TipCandidate c(BetType t, double prob, double? book) {
-      if (book != null && book > 1) return TipCandidate(t, prob, book, false);
-      return TipCandidate(t, prob, prob > 0 ? 1 / prob : 99, true);
+    final m = hasBook ? MarketProbabilities.from(o) : null;
+    TipCandidate c(BetType t, double prob, double? book, double? market) {
+      if (book != null && book > 1) {
+        final blended = market == null ? prob : (1 - marketWeight) * prob + marketWeight * market;
+        return TipCandidate(t, blended, book, false, modelProbability: prob, marketProbability: market);
+      }
+      return TipCandidate(t, prob, prob > 0 ? 1 / prob : 99, true, modelProbability: prob);
     }
 
     final all = [
-      c(BetType.home, p.pHome, o?.home),
-      c(BetType.draw, p.pDraw, o?.draw),
-      c(BetType.away, p.pAway, o?.away),
-      c(BetType.over25, p.pOver25, o?.over25),
-      c(BetType.bttsYes, p.pBtts, o?.bttsYes),
+      c(BetType.home, p.pHome, o?.home, m?.home),
+      c(BetType.draw, p.pDraw, o?.draw, m?.draw),
+      c(BetType.away, p.pAway, o?.away, m?.away),
+      c(BetType.over25, p.pOver25, o?.over25, m?.over25),
+      c(BetType.bttsYes, p.pBtts, o?.bttsYes, m?.bttsYes),
     ];
     // Finns spelbolagsodds jämför vi bara marknader som faktiskt har odds.
     return hasBook ? all.where((x) => !x.oddsFromModel).toList() : all;

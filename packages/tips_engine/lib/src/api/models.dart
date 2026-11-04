@@ -153,6 +153,8 @@ class MatchOdds {
   final double? away;
   final double? over25;
   final double? bttsYes;
+  final double? under25;
+  final double? bttsNo;
 
   const MatchOdds({
     required this.fixtureId,
@@ -162,6 +164,8 @@ class MatchOdds {
     this.away,
     this.over25,
     this.bttsYes,
+    this.under25,
+    this.bttsNo,
   });
 
   bool get isEmpty =>
@@ -173,7 +177,7 @@ class MatchOdds {
     final books = (j['bookmakers'] as List?) ?? const [];
     if (books.isEmpty) return MatchOdds(fixtureId: fixtureId);
     final book = books.first as Map<String, dynamic>;
-    double? h, d, a, o25, btts;
+    double? h, d, a, o25, btts, u25, bttsNo;
     for (final bet in (book['bets'] as List? ?? const [])) {
       final id = _toInt(bet['id']);
       for (final v in (bet['values'] as List? ?? const [])) {
@@ -185,8 +189,12 @@ class MatchOdds {
           if (label == 'Away') a = odd;
         } else if (id == 5 && label == 'Over 2.5') {
           o25 = odd;
+        } else if (id == 5 && label == 'Under 2.5') {
+          u25 = odd;
         } else if (id == 8 && label == 'Yes') {
           btts = odd;
+        } else if (id == 8 && label == 'No') {
+          bttsNo = odd;
         }
       }
     }
@@ -198,6 +206,39 @@ class MatchOdds {
       away: a,
       over25: o25,
       bttsYes: btts,
+      under25: u25,
+      bttsNo: bttsNo,
+    );
+  }
+}
+
+/// Spelbolagets sannolikheter med marginalen borträknad. Null där odds saknas.
+class MarketProbabilities {
+  final double? home, draw, away, over25, bttsYes;
+  const MarketProbabilities({this.home, this.draw, this.away, this.over25, this.bttsYes});
+
+  factory MarketProbabilities.from(MatchOdds o) {
+    double? h, d, a;
+    if (o.home != null && o.draw != null && o.away != null) {
+      final s = 1 / o.home! + 1 / o.draw! + 1 / o.away!;
+      h = 1 / o.home! / s;
+      d = 1 / o.draw! / s;
+      a = 1 / o.away! / s;
+    }
+    // Tvåvägsmarknad: med båda sidor räknas marginalen bort exakt, annars
+    // antas en typisk marginal på 6 %.
+    double? two(double? yes, double? no) {
+      if (yes == null) return null;
+      if (no != null) return (1 / yes) / (1 / yes + 1 / no);
+      return ((1 / yes) / 1.06).clamp(0.0, 1.0);
+    }
+
+    return MarketProbabilities(
+      home: h,
+      draw: d,
+      away: a,
+      over25: two(o.over25, o.under25),
+      bttsYes: two(o.bttsYes, o.bttsNo),
     );
   }
 }

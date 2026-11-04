@@ -7,6 +7,7 @@ export 'src/api/models.dart';
 export 'src/engine.dart';
 export 'src/model/commentary.dart';
 export 'src/model/predictor.dart';
+export 'src/model/settle.dart';
 export 'src/model/streaks.dart';
 export 'src/model/team_stats.dart';
 export 'src/model/tip.dart';

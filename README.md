@@ -7,3 +7,4 @@ Android-app som listar dagens, morgondagens och övermorgondagens matcher i alla
 - API-nyckeln skrivs in i appen första gången och sparas bara på telefonen. Den finns inte i koden eller APK:n.
 - Varje push till grenen `fotbollstips` bygger en APK via GitHub Actions och publicerar den som release.
 - Förhandsgranska gränssnittet med påhittad data: `flutter run -d chrome --dart-define=DEMO=true`.
+- Facit: tips i oddsfönstret sparas på telefonen och rättas när matcherna är spelade (träff, netto per tipstyp).

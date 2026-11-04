@@ -49,6 +49,15 @@ class TipsRepository {
     _engine = TipsEngine(_api!);
   }
 
+  /// Alla matcher ett datum (för att rätta facit).
+  Future<List<Fixture>> fixturesOn(DateTime day) {
+    final api = _api;
+    if (api == null) return Future.value(const []);
+    final now = DateTime.now();
+    final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
+    return api.fixturesByDate(day, isToday: isToday);
+  }
+
   Future<DayResult> load(int day, {bool force = false, void Function(String)? onProgress}) async {
     if (!force && _cacheByDay.containsKey(day)) return _cacheByDay[day]!;
     final engine = _engine;

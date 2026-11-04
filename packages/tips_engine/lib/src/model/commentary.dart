@@ -45,8 +45,11 @@ String buildComment(Fixture f, Prediction p, TipCandidate tip, List<String> form
   final oddsText = tip.oddsFromModel ? 'modellodds ${_d2(tip.odds)}' : 'odds ${_d2(tip.odds)}';
   var tail = 'Sannolikhet ${_pct(tip.probability)}, $oddsText';
   if (!tip.oddsFromModel && tip.edge > 0.03) tail += ', spelvärde +${_pct(tip.edge)}';
-  if (!tip.oddsFromModel && tip.edge <= -0.08) {
-    tail += '. Spelbolaget tror mer på det (${_pct(1 / tip.odds)}) än modellen, inget spelvärde';
+  final mp = tip.modelProbability, kp = tip.marketProbability;
+  if (mp != null && kp != null && (mp - kp).abs() >= 0.06) {
+    tail += mp > kp
+        ? '. Modellen (${_pct(mp)}) tror mer på det än spelbolaget (${_pct(kp)})'
+        : '. Spelbolaget (${_pct(kp)}) tror mer på det än modellen (${_pct(mp)})';
   }
   if (p.dataQuality < 0.4) tail += '. Tunt underlag, ta med en nypa salt';
   parts.add('$tail.');

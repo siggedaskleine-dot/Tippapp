@@ -30,7 +30,13 @@ class TipCandidate {
 
   /// true = inga spelbolagsodds, oddset är modellens rättvisa odds (1/p).
   final bool oddsFromModel;
-  const TipCandidate(this.type, this.probability, this.odds, this.oddsFromModel);
+
+  /// Modellens egen sannolikhet och marknadens (utan marginal), före vägning.
+  final double? modelProbability;
+  final double? marketProbability;
+
+  const TipCandidate(this.type, this.probability, this.odds, this.oddsFromModel,
+      {this.modelProbability, this.marketProbability});
 
   /// Förväntat värde per satsad krona minus 1. Positivt = spelvärde.
   double get edge => probability * odds - 1;
@@ -116,6 +122,8 @@ class MatchTip {
           'oddsFromModel': tip.oddsFromModel,
           'probability': tip.probability,
           'edge': tip.edge,
+          'modelProbability': tip.modelProbability,
+          'marketProbability': tip.marketProbability,
           'rating': tip.rating.name,
           'ratingLabel': tip.rating.label,
         },

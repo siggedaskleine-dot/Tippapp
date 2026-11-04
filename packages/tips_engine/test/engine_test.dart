@@ -236,9 +236,9 @@ void main() {
     expect(res.tips.first.tip.odds, greaterThanOrEqualTo(res.tips.last.tip.odds));
 
     expect(api.remainingToday, 7000);
-    // Lag 1–Lag 10 har inget spelbart i fönstret (hemmafavorit @ 1.35), de andra två har det.
-    expect(res.tips.where((t) => t.inOddsWindow).map((t) => t.fixture.id), [3, 2]);
-    expect(fake.calls.where((u) => u.path == '/fixtures/headtohead'), hasLength(2));
+    // Med marknaden invägd har alla tre ett spelbart tips i fönstret.
+    expect(res.tips.where((t) => t.inOddsWindow).map((t) => t.fixture.id), [3, 1, 2]);
+    expect(fake.calls.where((u) => u.path == '/fixtures/headtohead'), hasLength(3));
     for (final t in res.tips) {
       expect(t.streaks, isNotEmpty); // lagens egna streaks eller raden "Inga tydliga streaks"
       // ignore: avoid_print
@@ -310,5 +310,34 @@ void main() {
     expect(isCupCompetition('Allsvenskan'), isFalse);
     expect(isTopLeague(39), isTrue);
     expect(isTopLeague(99999), isFalse);
+  });
+
+  test('marknadens sannolikheter utan marginal', () {
+    const o = MatchOdds(fixtureId: 1, home: 2.0, draw: 3.4, away: 3.8, over25: 1.80, under25: 2.00);
+    final m = MarketProbabilities.from(o);
+    expect(m.home! + m.draw! + m.away!, closeTo(1, 1e-9));
+    expect(m.over25, closeTo((1 / 1.8) / (1 / 1.8 + 1 / 2.0), 1e-9));
+    expect(m.bttsYes, isNull);
+  });
+
+  test('tips avgörs efter ordinarie tid', () {
+    Fixture f(int h, int a, {String st = 'FT'}) => Fixture(
+          id: 1,
+          kickoff: DateTime.utc(2026),
+          status: st,
+          league: const LeagueRef(1, 'L', 'S', null, null, 2026, null),
+          home: const TeamRef(1, 'A', null),
+          away: const TeamRef(2, 'B', null),
+          goalsHome: h,
+          goalsAway: a,
+          ftHome: h,
+          ftAway: a,
+        );
+    expect(settle(BetType.home, f(2, 1)), TipOutcome.won);
+    expect(settle(BetType.over25, f(2, 1)), TipOutcome.won);
+    expect(settle(BetType.bttsYes, f(2, 0)), TipOutcome.lost);
+    expect(settle(BetType.draw, f(1, 1)), TipOutcome.won);
+    expect(settle(BetType.home, f(0, 0, st: 'PST')), TipOutcome.voided);
+    expect(settle(BetType.home, f(0, 0, st: 'NS')), TipOutcome.pending);
   });
 }

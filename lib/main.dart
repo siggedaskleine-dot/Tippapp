@@ -3,6 +3,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:tips_engine/tips_engine.dart';
 
+import 'facit_page.dart';
+import 'history.dart';
 import 'match_card.dart';
 import 'repository.dart';
 import 'theme.dart';
@@ -12,12 +14,15 @@ Future<void> main() async {
   await initializeDateFormatting('sv_SE');
   final repo = TipsRepository();
   await repo.init();
-  runApp(TipsApp(repo: repo));
+  final history = TipHistory();
+  await history.load();
+  runApp(TipsApp(repo: repo, history: history));
 }
 
 class TipsApp extends StatelessWidget {
   final TipsRepository repo;
-  const TipsApp({super.key, required this.repo});
+  final TipHistory history;
+  const TipsApp({super.key, required this.repo, required this.history});
 
   @override
   Widget build(BuildContext context) {
@@ -25,14 +30,15 @@ class TipsApp extends StatelessWidget {
       title: 'Fotbollstips',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
-      home: HomePage(repo: repo),
+      home: HomePage(repo: repo, history: history),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
   final TipsRepository repo;
-  const HomePage({super.key, required this.repo});
+  final TipHistory history;
+  const HomePage({super.key, required this.repo, required this.history});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -74,6 +80,7 @@ class _HomePageState extends State<HomePage> {
       final res = await repo.load(_day, force: force, onProgress: (m) {
         if (mounted) setState(() => _progress = m);
       });
+      await widget.history.record(res.tips);
       if (!mounted) return;
       setState(() => _result = res);
     } catch (e) {
@@ -219,6 +226,13 @@ class _HomePageState extends State<HomePage> {
             padding: EdgeInsets.all(12),
             child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
           ),
+        IconButton(
+          tooltip: 'Facit',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FacitPage(history: widget.history, repo: repo),
+          )),
+          icon: const Icon(Icons.insights_rounded, color: AppColors.accent),
+        ),
         IconButton(onPressed: _askKey, icon: const Icon(Icons.key_rounded, color: AppColors.muted)),
       ]),
     );

@@ -25,7 +25,11 @@ class ModelWeights {
     this.poisson1x2 = 0.6,
     this.poissonGoals = 0.55,
     this.shrinkK = 4,
+    this.recentFormPower = 0.35,
   });
+
+  /// Hur starkt senaste 6 matchernas målsnitt påverkar målförväntan (0 = inte alls).
+  final double recentFormPower;
 }
 
 class Prediction {
@@ -132,6 +136,19 @@ class Predictor {
 
     var lambdaH = lh * hAtt * aDef;
     var lambdaA = la * aAtt * hDef;
+
+    // --- Aktuell form: de 6 senaste matcherna väger extra ---
+    // Jämför målsnittet nyligen med säsongssnittet och justerar försiktigt.
+    double recent(TeamProfile t, bool scored) {
+      final last = t.results.take(6).toList();
+      if (last.length < 3 || t.all.played < 6) return 1.0;
+      final r = last.fold<int>(0, (s, x) => s + (scored ? x.$1 : x.$2)) / last.length;
+      final season = scored ? t.all.gfAvg : t.all.gaAvg;
+      return _clamp((r + 0.5) / (season + 0.5), 0.6, 1.6);
+    }
+
+    lambdaH *= _clamp(math.pow(recent(h, true) * recent(a, false), w.recentFormPower).toDouble(), 0.8, 1.25);
+    lambdaA *= _clamp(math.pow(recent(a, true) * recent(h, false), w.recentFormPower).toDouble(), 0.8, 1.25);
 
     // --- xG/xGA vävs in när båda lagen har xG-historik ---
     final xgN = math.min(h.all.xgMatches, a.all.xgMatches);
