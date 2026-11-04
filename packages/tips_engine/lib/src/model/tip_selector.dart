@@ -11,11 +11,13 @@ class TipSelector {
   final double distancePenalty;
 
   const TipSelector({
-    this.targetOdds = 1.70,
-    this.minOdds = 1.45,
-    this.maxOdds = 2.05,
+    this.targetOdds = 1.90,
+    this.minOdds = 1.70,
+    this.maxOdds = 2.10,
     this.distancePenalty = 0.15,
   });
+
+  bool inWindow(TipCandidate c) => c.odds >= minOdds && c.odds <= maxOdds;
 
   List<TipCandidate> candidates(Prediction p, MatchOdds? o) {
     final hasBook = o != null && !o.isEmpty;
@@ -36,16 +38,17 @@ class TipSelector {
   }
 
   /// Väljer tipset: inom oddsfönstret vinner bäst spelvärde med avdrag för
-  /// avstånd till 1.70. Ligger inget i fönstret tas det närmast 1.70.
+  /// avstånd till mitten av fönstret (1.70–2.10). Ligger inget i fönstret tas det närmast
+  /// mitten, och tipset markeras som utanför fönstret.
   (TipCandidate, List<TipCandidate>) select(Prediction p, MatchOdds? o) {
     final cands = candidates(p, o);
-    final inWindow = cands.where((c) => c.odds >= minOdds && c.odds <= maxOdds).toList();
+    final inside = cands.where(inWindow).toList();
     double score(TipCandidate c) => c.edge - distancePenalty * (c.odds - targetOdds).abs();
 
     final TipCandidate best;
-    if (inWindow.isNotEmpty) {
-      inWindow.sort((a, b) => score(b).compareTo(score(a)));
-      best = inWindow.first;
+    if (inside.isNotEmpty) {
+      inside.sort((a, b) => score(b).compareTo(score(a)));
+      best = inside.first;
     } else {
       final sorted = [...cands]
         ..sort((a, b) => (a.odds - targetOdds).abs().compareTo((b.odds - targetOdds).abs()));

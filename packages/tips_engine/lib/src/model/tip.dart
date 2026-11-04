@@ -66,6 +66,9 @@ class MatchTip {
   final double formScoreHome; // 0..1
   final double formScoreAway;
 
+  /// true när tipsets odds ligger i oddsfönstret (1.70–2.10).
+  final bool inOddsWindow;
+
   const MatchTip({
     required this.fixture,
     required this.prediction,
@@ -77,6 +80,7 @@ class MatchTip {
     required this.formAway,
     required this.formScoreHome,
     required this.formScoreAway,
+    this.inOddsWindow = true,
   });
 
   /// Formvärde för sortering, kopplat till tipset: hemmalagets form för 1,
@@ -110,6 +114,7 @@ class MatchTip {
         'formHome': formHome,
         'formAway': formAway,
         'formScore': formScore,
+        'inOddsWindow': inOddsWindow,
         'bookmaker': odds?.bookmaker,
         'prediction': prediction.toJson(),
       };

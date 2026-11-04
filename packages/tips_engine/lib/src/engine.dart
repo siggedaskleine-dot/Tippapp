@@ -123,6 +123,7 @@ class TipsEngine {
           formAway: formA,
           formScoreHome: hp?.formScore() ?? 0.5,
           formScoreAway: ap?.formScore() ?? 0.5,
+          inOddsWindow: !tip.oddsFromModel && selector.inWindow(tip),
         ));
       }
     }

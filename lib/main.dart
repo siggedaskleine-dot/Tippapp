@@ -42,6 +42,7 @@ class _HomePageState extends State<HomePage> {
   int _day = 0;
   SortBy _sort = SortBy.kickoff;
   bool _onlyOdds = true;
+  bool _onlyWindow = true;
   bool _onlyValue = false;
   String _query = '';
   DayResult? _result;
@@ -117,6 +118,7 @@ class _HomePageState extends State<HomePage> {
     final q = _query.toLowerCase();
     final list = res.tips.where((t) {
       if (_onlyOdds && t.tip.oddsFromModel) return false;
+      if (_onlyWindow && !t.inOddsWindow) return false;
       if (_onlyValue && t.tip.rating != TipRating.value) return false;
       if (q.isNotEmpty) {
         final f = t.fixture;
@@ -186,7 +188,7 @@ class _HomePageState extends State<HomePage> {
   Widget _header() {
     final res = _result;
     final sub = res == null
-        ? 'Tips med odds runt 1.70'
+        ? 'Tips med odds 1.70–2.10'
         : '${_visible.length} av ${res.tips.length} matcher'
             '${repo.remainingToday != null ? ' · ${repo.remainingToday} anrop kvar' : ''}';
     return Padding(
@@ -331,6 +333,7 @@ class _HomePageState extends State<HomePage> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
+            toggle('Odds 1.70–2.10', _onlyWindow, (v) => setState(() => _onlyWindow = v)),
             toggle('Bara med odds', _onlyOdds, (v) => setState(() => _onlyOdds = v)),
             toggle('Bara spelvärde', _onlyValue, (v) => setState(() => _onlyValue = v)),
           ]),

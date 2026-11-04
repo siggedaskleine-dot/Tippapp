@@ -211,7 +211,8 @@ void main() {
     expect(strong.comment, isNotEmpty);
 
     for (final t in res.tips) {
-      expect(t.tip.odds, inInclusiveRange(1.45, 2.05), reason: 'tips nära 1.70');
+      expect(t.tip.odds, inInclusiveRange(1.70, 2.10), reason: 'tips i oddsfönstret');
+      expect(t.inOddsWindow, isTrue);
       // ignore: avoid_print
       print('${t.fixture.home.name}–${t.fixture.away.name}: ${t.tip.type.long} @ ${t.tip.odds}  '
           '(1 ${(t.prediction.pHome * 100).round()}% X ${(t.prediction.pDraw * 100).round()}% '

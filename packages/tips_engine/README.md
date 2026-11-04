@@ -22,7 +22,7 @@ Cachetider: dagens matcher 20 min, kommande 3 h, odds 2 h, ligahistorik 12 h, f�
 - Målförväntan (Poisson med Dixon–Coles): anfall/försvar hemma resp. borta, krympt mot ligasnittet när underlaget är litet. xG/xGA vävs in med upp till 50 % vikt.
 - 1X2 = 60 % Poisson + 40 % PPG-modell (hemma-PPG hemma mot borta-PPG borta).
 - Över 2.5 och BLGM = 55 % Poisson + 45 % lagens faktiska frekvens.
-- Tipsval: bland 1, X, 2, Ö2.5, BLGM med odds 1.45–2.05 vinner bäst spelvärde med avdrag för avstånd till 1.70. Annars närmast 1.70. Utan odds används modellodds (1/p).
+- Tipsval: bland 1, X, 2, Ö2.5, BLGM med odds 1.70–2.10 vinner bäst spelvärde med avdrag för avstånd till 1.90. Annars närmast 1.90, och tipset markeras som utanför fönstret (appen döljer det som standard). Utan odds används modellodds (1/p).
 - Varje tips får betyg: Spelvärde, Rimligt, Svagt eller Inga odds, plus en kommentar på svenska.
 
 Vikterna finns i `ModelWeights` och `TipSelector`.

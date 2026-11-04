@@ -1,6 +1,6 @@
 # Fotbollstips
 
-Android-app som listar dagens, morgondagens och övermorgondagens matcher i alla ligor med ett tips (1X2, Över 2.5 eller Båda lagen gör mål) med odds runt 1.70. Data från api-football.com.
+Android-app som listar dagens, morgondagens och övermorgondagens matcher i alla ligor med ett tips (1X2, Över 2.5 eller Båda lagen gör mål) med odds mellan 1.70 och 2.10. Data från api-football.com.
 
 - `packages/tips_engine` – datamotor och tipsmodell (ren Dart, se dess README).
 - `lib/` – Flutter-appen: matchkort, dagflikar, sortering på tid, odds, form och sannolikhet, sök och filter.
