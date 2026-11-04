@@ -300,66 +300,89 @@ class _HomePageState extends State<HomePage> {
     var spread = repo.spread;
     final picked = await showModalBottomSheet<(double, double)>(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Önskat odds', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            const Text('Tipsen väljs så nära det här oddset som möjligt, med bäst spelvärde inom spannet.',
-                style: TextStyle(color: AppColors.muted, fontSize: 13)),
-            const SizedBox(height: 18),
-            Center(
-              child: Text(target.toStringAsFixed(2),
-                  style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800, color: AppColors.accent)),
-            ),
-            Center(
-              child: Text(
-                  'Tips mellan ${(target - spread).toStringAsFixed(2)} och ${(target + spread).toStringAsFixed(2)}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13)),
-            ),
-            Slider(
-              value: target,
-              min: 1.30,
-              max: 4.00,
-              divisions: 54,
-              activeColor: AppColors.accent,
-              label: target.toStringAsFixed(2),
-              onChanged: (v) => setSheet(() => target = double.parse(v.toStringAsFixed(2))),
-            ),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final v in const [1.50, 1.70, 1.90, 2.20, 2.50, 3.00])
-                ChoiceChip(
-                  label: Text(v.toStringAsFixed(2)),
-                  selected: (target - v).abs() < 0.001,
-                  selectedColor: AppColors.accent,
-                  onSelected: (_) => setSheet(() => target = v),
+        builder: (ctx, setSheet) {
+          Widget pill(String label, bool selected, Color color, VoidCallback onTap) => GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: selected ? color : const Color(0xFF0E1428),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: selected ? color : AppColors.cardBorder),
+                  ),
+                  child: Text(label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: selected ? const Color(0xFF0B1020) : AppColors.text,
+                      )),
                 ),
-            ]),
-            const SizedBox(height: 16),
-            const Text('Spann', style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, children: [
-              for (final v in const [0.10, 0.20, 0.30, 0.50])
-                ChoiceChip(
-                  label: Text('± ${v.toStringAsFixed(2)}'),
-                  selected: (spread - v).abs() < 0.001,
-                  selectedColor: AppColors.accent2,
-                  onSelected: (_) => setSheet(() => spread = v),
+              );
+          return SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Rubrik med Spara alltid synlig överst
+                Row(children: [
+                  const Expanded(
+                    child: Text('Önskat odds', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, (target, spread)),
+                    child: const Text('Spara'),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text(target.toStringAsFixed(2),
+                      style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.accent)),
+                  const SizedBox(width: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                        'tips mellan ${(target - spread).toStringAsFixed(2)} och ${(target + spread).toStringAsFixed(2)}',
+                        style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  ),
+                ]),
+                Slider(
+                  value: target.clamp(1.30, 4.00),
+                  min: 1.30,
+                  max: 4.00,
+                  divisions: 54,
+                  activeColor: AppColors.accent,
+                  label: target.toStringAsFixed(2),
+                  onChanged: (v) => setSheet(() => target = double.parse(v.toStringAsFixed(2))),
                 ),
-            ]),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(ctx, (target, spread)),
-                child: const Padding(padding: EdgeInsets.all(12), child: Text('Spara')),
-              ),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final v in const [1.40, 1.50, 1.70, 1.90, 2.20, 2.50, 3.00])
+                    pill(v.toStringAsFixed(2), (target - v).abs() < 0.001, AppColors.accent,
+                        () => setSheet(() => target = v)),
+                ]),
+                const SizedBox(height: 16),
+                const Text('Spann', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final v in const [0.10, 0.20, 0.30, 0.50])
+                    pill('± ${v.toStringAsFixed(2)}', (spread - v).abs() < 0.001, AppColors.accent2,
+                        () => setSheet(() => spread = v)),
+                ]),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, (target, spread)),
+                    child: const Padding(padding: EdgeInsets.all(12), child: Text('Spara')),
+                  ),
+                ),
+              ]),
             ),
-          ]),
-        ),
+          );
+        },
       ),
     );
     if (picked == null) return;
