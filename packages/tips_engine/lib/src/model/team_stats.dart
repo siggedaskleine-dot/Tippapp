@@ -49,6 +49,9 @@ class TeamProfile {
   /// De senaste färdigspelade match-id:na, nyast först (för xG-hämtning).
   final List<int> recentFixtureIds = [];
 
+  /// Senaste resultaten som (gjorda, insläppta) mål, nyast först.
+  final List<(int, int)> results = [];
+
   TeamProfile(this.teamId);
 
   TeamSample sample(Venue v) => switch (v) { Venue.home => home, Venue.away => away, Venue.all => all };
@@ -132,6 +135,8 @@ LeagueTable buildLeagueTable(Iterable<Fixture> fixtures, {Map<int, (double, doub
     away.form.add(a > h ? 'V' : h == a ? 'O' : 'F');
     home.recentFixtureIds.add(f.id);
     away.recentFixtureIds.add(f.id);
+    home.results.add((h, a));
+    away.results.add((a, h));
   }
 
   final n = done.length;

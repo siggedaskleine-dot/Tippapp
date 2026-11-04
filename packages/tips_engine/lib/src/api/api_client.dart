@@ -137,6 +137,17 @@ class ApiFootballClient {
     return _resp(body).map(Fixture.fromJson).toList();
   }
 
+  /// De senaste inbördes mötena mellan två lag (1 anrop, cachas 3 dygn).
+  Future<List<Fixture>> headToHead(int teamA, int teamB, {int last = 10}) async {
+    final ids = [teamA, teamB]..sort();
+    final body = await get(
+      '/fixtures/headtohead',
+      {'h2h': '${ids[0]}-${ids[1]}', 'last': '$last', 'timezone': timezone},
+      const Duration(days: 3),
+    );
+    return _resp(body).map(Fixture.fromJson).toList();
+  }
+
   /// Odds för ett datum från en bookmaker (standard 8 = Bet365). Sidindelat.
   Future<Map<int, MatchOdds>> oddsByDate(DateTime date, {int bookmaker = 8}) async {
     final out = <int, MatchOdds>{};

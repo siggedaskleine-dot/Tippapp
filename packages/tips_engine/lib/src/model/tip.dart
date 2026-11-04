@@ -1,5 +1,6 @@
 import '../api/models.dart';
 import 'predictor.dart';
+import 'streaks.dart';
 
 enum BetType { home, draw, away, over25, bttsYes }
 
@@ -61,6 +62,9 @@ class MatchTip {
   final TipCandidate tip;
   final List<TipCandidate> alternatives;
   final String comment;
+
+  /// Kommentaren utan streaks (appen visar streaks som egna rader).
+  final String analysis;
   final List<String> formHome; // nyast först, V/O/F
   final List<String> formAway;
   final double formScoreHome; // 0..1
@@ -69,6 +73,9 @@ class MatchTip {
   /// true när tipsets odds ligger i oddsfönstret (1.70–2.10).
   final bool inOddsWindow;
 
+  /// Streaks och mönster, de mest anmärkningsvärda först.
+  final List<Streak> streaks;
+
   const MatchTip({
     required this.fixture,
     required this.prediction,
@@ -76,11 +83,13 @@ class MatchTip {
     required this.tip,
     required this.alternatives,
     required this.comment,
+    this.analysis = '',
     required this.formHome,
     required this.formAway,
     required this.formScoreHome,
     required this.formScoreAway,
     this.inOddsWindow = true,
+    this.streaks = const [],
   });
 
   /// Formvärde för sortering, kopplat till tipset: hemmalagets form för 1,
@@ -111,10 +120,12 @@ class MatchTip {
           'ratingLabel': tip.rating.label,
         },
         'comment': comment,
+        'analysis': analysis,
         'formHome': formHome,
         'formAway': formAway,
         'formScore': formScore,
         'inOddsWindow': inOddsWindow,
+        'streaks': [for (final s in streaks) {'text': s.text, 'kind': s.kind.name}],
         'bookmaker': odds?.bookmaker,
         'prediction': prediction.toJson(),
       };

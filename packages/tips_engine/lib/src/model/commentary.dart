@@ -1,5 +1,6 @@
 import '../api/models.dart';
 import 'predictor.dart';
+import 'streaks.dart';
 import 'tip.dart';
 
 String _pct(double v) => '${(v * 100).round()}%';
@@ -9,7 +10,8 @@ String _d2(double v) => v.toStringAsFixed(2);
 String _formText(List<String> form) => form.isEmpty ? '' : form.take(5).join('');
 
 /// Kort, informativ kommentar på svenska om tipset.
-String buildComment(Fixture f, Prediction p, TipCandidate tip, List<String> formH, List<String> formA) {
+String buildComment(Fixture f, Prediction p, TipCandidate tip, List<String> formH, List<String> formA,
+    {List<Streak> streaks = const []}) {
   final h = f.home.name, a = f.away.name;
   final parts = <String>[];
   final xgLine = p.usedXg
@@ -48,5 +50,8 @@ String buildComment(Fixture f, Prediction p, TipCandidate tip, List<String> form
   }
   if (p.dataQuality < 0.4) tail += '. Tunt underlag, ta med en nypa salt';
   parts.add('$tail.');
+  if (streaks.isNotEmpty) {
+    parts.add('${streaks.map((s) => s.text).join('. ')}.');
+  }
   return parts.join(' ');
 }

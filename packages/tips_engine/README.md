@@ -23,6 +23,9 @@ Cachetider: dagens matcher 20 min, kommande 3 h, odds 2 h, ligahistorik 12 h, f�
 - 1X2 = 60 % Poisson + 40 % PPG-modell (hemma-PPG hemma mot borta-PPG borta).
 - Över 2.5 och BLGM = 55 % Poisson + 45 % lagens faktiska frekvens.
 - Tipsval: bland 1, X, 2, Ö2.5, BLGM med odds 1.70–2.10 vinner bäst spelvärde med avdrag för avstånd till 1.90. Annars närmast 1.90, och tipset markeras som utanför fönstret (appen döljer det som standard). Utan odds används modellodds (1/p).
+- Tipset måste ha minst 40 % modellsannolikhet för att räknas som spelbart. Annars markeras matchen som utanför fönstret.
+- Streaks: lagens raka vinster/förluster, obesegrade, Ö2.5, BLGM, mål och nollor i ligan, plus inbördes möten via `/fixtures/headtohead` (1 anrop per visad match, cachas 3 dygn). De tre mest anmärkningsvärda visas, annars "Inga tydliga streaks".
+- `isTopLeague` (kända lag) och `isCupCompetition` (cup- och träningsmatcher, utifrån namnet) används av appens filter.
 - Varje tips får betyg: Spelvärde, Rimligt, Svagt eller Inga odds, plus en kommentar på svenska.
 
 Vikterna finns i `ModelWeights` och `TipSelector`.

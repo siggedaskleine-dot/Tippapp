@@ -7,6 +7,10 @@ class TipSelector {
   final double minOdds;
   final double maxOdds;
 
+  /// Lägsta modellsannolikhet för att ett tips ska räknas som spelbart.
+  /// Ligger inget spelbart i oddsfönstret markeras matchen som utanför.
+  final double minProbability;
+
   /// Hur mycket avståndet från måloddset straffas mot spelvärdet.
   final double distancePenalty;
 
@@ -15,9 +19,10 @@ class TipSelector {
     this.minOdds = 1.70,
     this.maxOdds = 2.10,
     this.distancePenalty = 0.15,
+    this.minProbability = 0.40,
   });
 
-  bool inWindow(TipCandidate c) => c.odds >= minOdds && c.odds <= maxOdds;
+  bool inWindow(TipCandidate c) => c.odds >= minOdds && c.odds <= maxOdds && c.probability >= minProbability;
 
   List<TipCandidate> candidates(Prediction p, MatchOdds? o) {
     final hasBook = o != null && !o.isEmpty;

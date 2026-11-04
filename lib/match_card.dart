@@ -108,7 +108,12 @@ class _MatchCardState extends State<MatchCard> {
                   const SizedBox(height: 12),
                   _ProbBar(p: t.tip.probability, color: rc),
                   const SizedBox(height: 12),
-                  Text(t.comment, style: const TextStyle(color: Color(0xFFC5CCE0), fontSize: 13, height: 1.4)),
+                  Text(t.analysis.isEmpty ? t.comment : t.analysis,
+                      style: const TextStyle(color: Color(0xFFC5CCE0), fontSize: 13, height: 1.4)),
+                  if (t.streaks.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    for (final s in t.streaks) _StreakRow(s),
+                  ],
                   AnimatedCrossFade(
                     duration: const Duration(milliseconds: 200),
                     crossFadeState: _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
@@ -121,6 +126,36 @@ class _MatchCardState extends State<MatchCard> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StreakRow extends StatelessWidget {
+  final Streak s;
+  const _StreakRow(this.s);
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = switch (s.kind) {
+      StreakKind.team => (Icons.local_fire_department_rounded, AppColors.draw),
+      StreakKind.h2h => (Icons.compare_arrows_rounded, AppColors.accent2),
+      StreakKind.none => (Icons.remove_rounded, AppColors.muted),
+    };
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(s.text, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+        ),
+      ]),
     );
   }
 }

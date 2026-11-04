@@ -94,6 +94,12 @@ class FakeApi {
     calls.add(req.url);
     expect(req.headers['x-apisports-key'], 'test-key');
     final q = req.url.queryParameters;
+    if (req.url.path == '/fixtures/headtohead') {
+      final ids = q['h2h']!.split('-').map(int.parse).toSet();
+      final m = season.where((f) =>
+          ids.contains(f['teams']['home']['id']) && ids.contains(f['teams']['away']['id']) && f['fixture']['status']['short'] == 'FT');
+      return json({'errors': [], 'response': m.toList()});
+    }
     if (req.url.path == '/fixtures' && q.containsKey('date')) {
       return json({'errors': [], 'response': upcoming});
     }
@@ -211,8 +217,10 @@ void main() {
     expect(strong.comment, isNotEmpty);
 
     for (final t in res.tips) {
-      expect(t.tip.odds, inInclusiveRange(1.70, 2.10), reason: 'tips i oddsfönstret');
-      expect(t.inOddsWindow, isTrue);
+      if (t.inOddsWindow) {
+        expect(t.tip.odds, inInclusiveRange(1.70, 2.10), reason: 'tips i oddsfönstret');
+        expect(t.tip.probability, greaterThanOrEqualTo(0.40));
+      }
       // ignore: avoid_print
       print('${t.fixture.home.name}–${t.fixture.away.name}: ${t.tip.type.long} @ ${t.tip.odds}  '
           '(1 ${(t.prediction.pHome * 100).round()}% X ${(t.prediction.pDraw * 100).round()}% '
@@ -228,6 +236,14 @@ void main() {
     expect(res.tips.first.tip.odds, greaterThanOrEqualTo(res.tips.last.tip.odds));
 
     expect(api.remainingToday, 7000);
+    // Lag 1–Lag 10 har inget spelbart i fönstret (hemmafavorit @ 1.35), de andra två har det.
+    expect(res.tips.where((t) => t.inOddsWindow).map((t) => t.fixture.id), [3, 2]);
+    expect(fake.calls.where((u) => u.path == '/fixtures/headtohead'), hasLength(2));
+    for (final t in res.tips) {
+      expect(t.streaks, isNotEmpty); // lagens egna streaks eller raden "Inga tydliga streaks"
+      // ignore: avoid_print
+      print('  streaks: ${t.streaks.map((s) => s.text).join(' | ')}');
+    }
   });
 
   test('andra körningen går helt från cache', () async {
@@ -245,5 +261,54 @@ void main() {
     final (tip, _) = sel.select(p, null);
     expect(tip.oddsFromModel, isTrue);
     expect(tip.odds, closeTo(1 / tip.probability, 1e-9));
+  });
+
+  group('streaks', () {
+    test('raka vinster och mål', () {
+      final s = teamStreaks('Landskrona', const [(2, 1), (3, 0), (1, 0), (0, 0), (2, 2)]);
+      expect(s.map((x) => x.text), contains('Landskrona har vunnit 3 raka ligamatcher'));
+    });
+
+    test('X av senaste Y', () {
+      final s = teamStreaks('Lag', const [(2, 1), (0, 1), (3, 0), (1, 0), (2, 0), (4, 1), (2, 1)]);
+      expect(s.map((x) => x.text), contains('Lag har vunnit 6 av 7 senaste'));
+    });
+
+    test('inbördes möten', () {
+      const home = TeamRef(1, 'Landskrona', null);
+      const away = TeamRef(2, 'Trelleborg', null);
+      Fixture m(int i, bool landskronaHome, int lg, int tg) => Fixture(
+            id: i,
+            kickoff: DateTime.utc(2025, 1, 1).add(Duration(days: 30 * i)),
+            status: 'FT',
+            league: const LeagueRef(1, 'L', 'S', null, null, 2025, null),
+            home: landskronaHome ? home : away,
+            away: landskronaHome ? away : home,
+            goalsHome: landskronaHome ? lg : tg,
+            goalsAway: landskronaHome ? tg : lg,
+          );
+      final meetings = [m(6, true, 2, 1), m(5, false, 3, 1), m(4, true, 2, 2), m(3, false, 2, 1), m(2, true, 1, 0), m(1, false, 0, 1)];
+      final s = h2hStreaks(home, away, meetings).map((x) => x.text).toList();
+      expect(s, contains('Båda lagen har gjort mål i de 4 senaste mötena'));
+      expect(s, contains('Över 2.5 mål i de 4 senaste mötena'));
+    });
+
+    test('inga streaks ger en rad om det', () {
+      final picked = pickStreaks(const []);
+      expect(picked.single.kind, StreakKind.none);
+    });
+  });
+
+  test('cupmatcher och kända lag', () {
+    expect(isCupCompetition('FA Cup'), isTrue);
+    expect(isCupCompetition('Svenska Cupen'), isTrue);
+    expect(isCupCompetition('DFB Pokal'), isTrue);
+    expect(isCupCompetition('Copa del Rey'), isTrue);
+    expect(isCupCompetition('Club Friendlies'), isTrue);
+    expect(isCupCompetition('Premier League'), isFalse);
+    expect(isCupCompetition('UEFA Champions League'), isFalse);
+    expect(isCupCompetition('Allsvenskan'), isFalse);
+    expect(isTopLeague(39), isTrue);
+    expect(isTopLeague(99999), isFalse);
   });
 }

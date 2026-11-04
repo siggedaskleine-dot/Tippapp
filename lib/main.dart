@@ -43,6 +43,8 @@ class _HomePageState extends State<HomePage> {
   SortBy _sort = SortBy.kickoff;
   bool _onlyOdds = true;
   bool _onlyWindow = true;
+  bool _onlyTop = false;
+  bool _hideCups = false;
   bool _onlyValue = false;
   String _query = '';
   DayResult? _result;
@@ -119,6 +121,8 @@ class _HomePageState extends State<HomePage> {
     final list = res.tips.where((t) {
       if (_onlyOdds && t.tip.oddsFromModel) return false;
       if (_onlyWindow && !t.inOddsWindow) return false;
+      if (_onlyTop && !isTopLeague(t.fixture.league.id)) return false;
+      if (_hideCups && isCupCompetition(t.fixture.league.name)) return false;
       if (_onlyValue && t.tip.rating != TipRating.value) return false;
       if (q.isNotEmpty) {
         final f = t.fixture;
@@ -333,6 +337,8 @@ class _HomePageState extends State<HomePage> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
+            toggle('Kända lag', _onlyTop, (v) => setState(() => _onlyTop = v)),
+            toggle('Dölj cupmatcher', _hideCups, (v) => setState(() => _hideCups = v)),
             toggle('Odds 1.70–2.10', _onlyWindow, (v) => setState(() => _onlyWindow = v)),
             toggle('Bara med odds', _onlyOdds, (v) => setState(() => _onlyOdds = v)),
             toggle('Bara spelvärde', _onlyValue, (v) => setState(() => _onlyValue = v)),

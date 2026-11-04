@@ -4,6 +4,7 @@ import 'api/api_client.dart';
 import 'api/models.dart';
 import 'model/commentary.dart';
 import 'model/predictor.dart';
+import 'model/streaks.dart';
 import 'model/team_stats.dart';
 import 'model/tip.dart';
 import 'model/tip_selector.dart';
@@ -26,6 +27,12 @@ class EngineOptions {
   /// Visa även matcher som redan startat/är klara.
   final bool includeStarted;
 
+  /// Hämta inbördes möten (1 anrop per match, cachas 3 dygn).
+  final bool fetchH2h;
+
+  /// Hämta inbördes möten bara för tips i oddsfönstret (de som visas).
+  final bool h2hOnlyInWindow;
+
   /// Om ligans säsong har färre färdiga matcher än så tas förra säsongen med.
   final int minLeagueMatches;
 
@@ -36,6 +43,8 @@ class EngineOptions {
     this.bookmaker = 8,
     this.includeStarted = false,
     this.minLeagueMatches = 40,
+    this.fetchH2h = true,
+    this.h2hOnlyInWindow = true,
   });
 }
 
@@ -101,31 +110,59 @@ class TipsEngine {
       }
     }));
 
-    final tips = <MatchTip>[];
+    // Först modell och tipsval för alla matcher.
+    final picked = <(Fixture, LeagueTable, Prediction, MatchOdds?, TipCandidate, List<TipCandidate>, bool)>[];
     for (final e in byLeague.entries) {
       final table = tables[e.key]!;
       for (final f in e.value) {
         final p = predictor.predict(table, f.home.id, f.away.id);
         final o = odds[f.id];
         final (tip, alts) = selector.select(p, o);
-        final hp = table[f.home.id];
-        final ap = table[f.away.id];
-        final formH = hp?.form.take(5).toList() ?? const <String>[];
-        final formA = ap?.form.take(5).toList() ?? const <String>[];
-        tips.add(MatchTip(
-          fixture: f,
-          prediction: p,
-          odds: o,
-          tip: tip,
-          alternatives: alts,
-          comment: buildComment(f, p, tip, formH, formA),
-          formHome: formH,
-          formAway: formA,
-          formScoreHome: hp?.formScore() ?? 0.5,
-          formScoreAway: ap?.formScore() ?? 0.5,
-          inOddsWindow: !tip.oddsFromModel && selector.inWindow(tip),
-        ));
+        picked.add((f, table, p, o, tip, alts, !tip.oddsFromModel && selector.inWindow(tip)));
       }
+    }
+
+    // Inbördes möten hämtas parallellt för de matcher som visas.
+    final h2h = <int, List<Fixture>>{};
+    if (options.fetchH2h) {
+      onProgress?.call('Hämtar inbördes möten');
+      await Future.wait(picked.where((x) => !options.h2hOnlyInWindow || x.$7).map((x) async {
+        final remaining = api.remainingToday;
+        if (remaining != null && remaining < options.reserveCalls) return;
+        try {
+          h2h[x.$1.id] = await api.headToHead(x.$1.home.id, x.$1.away.id);
+        } on ApiException {
+          // Utan möten blir det bara lagens egna streaks.
+        }
+      }));
+    }
+
+    final tips = <MatchTip>[];
+    for (final (f, table, p, o, tip, alts, inWindow) in picked) {
+      final hp = table[f.home.id];
+      final ap = table[f.away.id];
+      final formH = hp?.form.take(5).toList() ?? const <String>[];
+      final formA = ap?.form.take(5).toList() ?? const <String>[];
+      final streaks = pickStreaks([
+        ...teamStreaks(f.home.name, hp?.results ?? const []),
+        ...teamStreaks(f.away.name, ap?.results ?? const []),
+        ...h2hStreaks(f.home, f.away, h2h[f.id] ?? const []),
+      ]);
+      tips.add(MatchTip(
+        fixture: f,
+        prediction: p,
+        odds: o,
+        tip: tip,
+        alternatives: alts,
+        comment: buildComment(f, p, tip, formH, formA, streaks: streaks),
+        analysis: buildComment(f, p, tip, formH, formA),
+        formHome: formH,
+        formAway: formA,
+        formScoreHome: hp?.formScore() ?? 0.5,
+        formScoreAway: ap?.formScore() ?? 0.5,
+        inOddsWindow: inWindow,
+        streaks: streaks,
+      ));
     }
     sortTips(tips, SortBy.kickoff);
     return DayResult(date, tips, api.networkCalls - callsBefore, api.remainingToday, warnings);
