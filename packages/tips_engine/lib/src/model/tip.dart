@@ -109,6 +109,11 @@ class MatchTip {
     this.deepAnalysis = const [],
   });
 
+  /// Det minsta antalet spelade matcher i säsongen av de två lagen.
+  int get minPlayed => (homeProfile?.seasonPlayed ?? 0) < (awayProfile?.seasonPlayed ?? 0)
+      ? (homeProfile?.seasonPlayed ?? 0)
+      : (awayProfile?.seasonPlayed ?? 0);
+
   /// Formvärde för sortering, kopplat till tipset: hemmalagets form för 1,
   /// bortalagets för 2, annars snittet av båda.
   double get formScore => switch (tip.type) {

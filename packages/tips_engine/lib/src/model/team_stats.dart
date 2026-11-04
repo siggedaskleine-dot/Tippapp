@@ -68,6 +68,10 @@ class TeamProfile {
   /// Senaste matcherna med motståndare och plats, nyast först.
   final List<RecentMatch> matches = [];
 
+  /// Spelade matcher i innevarande säsong (förra säsongen kan ingå i
+  /// statistiken när ligan har få matcher, men räknas inte här).
+  int seasonPlayed = 0;
+
   TeamProfile(this.teamId);
 
   /// Senaste matcherna för en viss plats (hemma, borta eller alla).
@@ -129,7 +133,8 @@ class LeagueTable {
 
 /// Bygger lagprofiler från en lista matcher. [xgById] kompletterar med xG
 /// för matcher där vi hämtat statistik separat.
-LeagueTable buildLeagueTable(Iterable<Fixture> fixtures, {Map<int, (double, double)> xgById = const {}}) {
+LeagueTable buildLeagueTable(Iterable<Fixture> fixtures,
+    {Map<int, (double, double)> xgById = const {}, int? currentSeason}) {
   final done = fixtures.where((f) => f.isFinished && f.regHome != null && f.regAway != null).toList()
     ..sort((a, b) => b.kickoff.compareTo(a.kickoff)); // nyast först
   final teams = <int, TeamProfile>{};
@@ -159,6 +164,10 @@ LeagueTable buildLeagueTable(Iterable<Fixture> fixtures, {Map<int, (double, doub
     away.recentFixtureIds.add(f.id);
     home.results.add((h, a));
     away.results.add((a, h));
+    if (currentSeason == null || f.league.season == currentSeason) {
+      home.seasonPlayed++;
+      away.seasonPlayed++;
+    }
     home.matches.add(RecentMatch(f.kickoff, f.away.name, true, h, a));
     away.matches.add(RecentMatch(f.kickoff, f.home.name, false, a, h));
   }

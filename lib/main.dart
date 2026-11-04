@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tips_engine/tips_engine.dart';
 
 import 'facit_page.dart';
@@ -52,6 +53,7 @@ class _HomePageState extends State<HomePage> {
   bool _onlyTop = false;
   bool _hideCups = false;
   bool _hideYouth = true;
+  int _minPlayed = 5;
   MarketFilter _market = MarketFilter.all;
   bool _onlyValue = false;
   String _query = '';
@@ -65,6 +67,10 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      final v = prefs.getInt('min_played');
+      if (v != null && mounted) setState(() => _minPlayed = v);
+    });
     if (repo.hasKey) {
       _load();
     } else {
@@ -130,6 +136,7 @@ class _HomePageState extends State<HomePage> {
     final list = res.tipsFor(_market).where((t) {
       if (_onlyOdds && t.tip.oddsFromModel) return false;
       if (_onlyWindow && !t.inOddsWindow) return false;
+      if (t.minPlayed < _minPlayed) return false;
       if (_onlyTop && !isTopLeague(t.fixture.league.id)) return false;
       if (_hideCups && isCupCompetition(t.fixture.league.name)) return false;
       if (_hideYouth && isYouthMatch(t.fixture)) return false;
@@ -396,6 +403,27 @@ class _HomePageState extends State<HomePage> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: PopupMenuButton<int>(
+                initialValue: _minPlayed,
+                color: AppColors.card,
+                onSelected: (v) {
+                  setState(() => _minPlayed = v);
+                  SharedPreferences.getInstance().then((p) => p.setInt('min_played', v));
+                },
+                itemBuilder: (_) => [
+                  for (var n = 0; n <= 5; n++)
+                    PopupMenuItem(value: n, child: Text(n == 0 ? 'Inget krav' : n == 1 ? 'Minst 1 spelad match' : 'Minst $n spelade matcher')),
+                ],
+                child: Chip(
+                  avatar: const Icon(Icons.filter_list_rounded, size: 16, color: AppColors.accent),
+                  label: Text(_minPlayed == 0 ? 'Matcher: alla' : _minPlayed == 1 ? 'Minst 1 match' : 'Minst $_minPlayed matcher'),
+                  backgroundColor: const Color(0xFF223058),
+                  side: const BorderSide(color: AppColors.cardBorder),
+                ),
+              ),
+            ),
             toggle('Kända lag', _onlyTop, (v) => setState(() => _onlyTop = v)),
             toggle('Dölj cupmatcher', _hideCups, (v) => setState(() => _hideCups = v)),
             toggle('Dölj ungdom', _hideYouth, (v) => setState(() => _hideYouth = v)),

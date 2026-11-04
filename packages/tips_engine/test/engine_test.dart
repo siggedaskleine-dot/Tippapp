@@ -249,6 +249,7 @@ void main() {
       }
     }
     for (final t in res.tips) {
+      expect(t.minPlayed, 36); // 10 lag, alla möts fyra gånger = 36 matcher var
       expect(t.deepAnalysis.length, greaterThanOrEqualTo(4));
       expect(t.homeProfile!.recent(Venue.home), isNotEmpty);
       expect(t.homeProfile!.recent(Venue.home).every((m) => m.atHome), isTrue);

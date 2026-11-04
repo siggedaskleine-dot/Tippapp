@@ -214,7 +214,7 @@ class TipsEngine {
       }
     }
 
-    var table = buildLeagueTable(history);
+    var table = buildLeagueTable(history, currentSeason: season);
     if (!options.fetchXg) return table;
 
     final key = '$leagueId:$season';
@@ -250,7 +250,7 @@ class TipsEngine {
         return table;
       }
     }
-    return buildLeagueTable(history, xgById: xgById);
+    return buildLeagueTable(history, xgById: xgById, currentSeason: season);
   }
 }
 
