@@ -51,6 +51,19 @@ class TipSelector {
     return TipSelector(minOdds: minOdds, maxOdds: maxOdds, targetOdds: target, minProbability: minProb);
   }
 
+  /// Selector kring ett önskat odds, t.ex. 1.50 ± 0.20. Tipset som ligger
+  /// närmast önskat odds vinner om spelvärdet är likvärdigt.
+  factory TipSelector.forTarget(double target, double spread) {
+    final minProb = (0.85 / target).clamp(0.10, 0.40).toDouble();
+    return TipSelector(
+      targetOdds: target,
+      minOdds: target - spread,
+      maxOdds: target + spread,
+      minProbability: minProb,
+      distancePenalty: 0.4,
+    );
+  }
+
   /// Hur mycket spelbolagets (marginalrensade) sannolikhet vägs in.
   /// Marknaden fångar skador, avstängningar och laguttagningar som modellen
   /// inte ser, så en blandning träffar oftare än modellen ensam.

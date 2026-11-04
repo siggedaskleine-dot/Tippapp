@@ -18,31 +18,37 @@ class TipsRepository {
 
   final _cacheByDay = <int, DayResult>{};
 
-  double minOdds = 1.70;
-  double maxOdds = 2.10;
+  /// Önskat odds och hur långt ifrån det tipsen får ligga.
+  double targetOdds = 1.90;
+  double spread = 0.20;
+  double get minOdds => targetOdds - spread;
+  double get maxOdds => targetOdds + spread;
 
   int? get remainingToday => _api?.remainingToday;
 
-  /// Ändrar oddsfönstret. Tipsen räknas om från cachen nästa gång en dag laddas.
-  Future<void> setOddsRange(double min, double max) async {
-    minOdds = min;
-    maxOdds = max;
-    _engine?.selector = TipSelector.forRange(min, max);
+  TipSelector get _selector => TipSelector.forTarget(targetOdds, spread);
+
+  /// Ändrar önskat odds. Tipsen räknas om från cachen nästa gång en dag laddas.
+  Future<void> setTargetOdds(double target, double spread) async {
+    targetOdds = target;
+    this.spread = spread;
+    _engine?.selector = _selector;
     _cacheByDay.clear();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('min_odds', min);
-    await prefs.setDouble('max_odds', max);
+    await prefs.setDouble('target_odds', target);
+    await prefs.setDouble('odds_spread', spread);
   }
   bool get hasKey => (_key ?? '').isNotEmpty;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    minOdds = prefs.getDouble('min_odds') ?? 1.70;
-    maxOdds = prefs.getDouble('max_odds') ?? 2.10;
+    final oldMin = prefs.getDouble('min_odds'), oldMax = prefs.getDouble('max_odds');
+    targetOdds = prefs.getDouble('target_odds') ?? (oldMin != null && oldMax != null ? (oldMin + oldMax) / 2 : 1.90);
+    spread = prefs.getDouble('odds_spread') ?? (oldMin != null && oldMax != null ? (oldMax - oldMin) / 2 : 0.20);
     if (_demo) {
       _key = 'demo';
       _api = ApiFootballClient(apiKey: 'demo', cache: MemoryCache(), httpClient: demoClient());
-      _engine = TipsEngine(_api!, selector: TipSelector.forRange(minOdds, maxOdds));
+      _engine = TipsEngine(_api!, selector: _selector);
       return;
     }
     _key = prefs.getString(_prefKey);
@@ -62,7 +68,7 @@ class TipsRepository {
     _api?.close();
     final dir = await getApplicationCacheDirectory();
     _api = ApiFootballClient(apiKey: _key!, cache: FileCache('${dir.path}/api'));
-    _engine = TipsEngine(_api!, selector: TipSelector.forRange(minOdds, maxOdds));
+    _engine = TipsEngine(_api!, selector: _selector);
   }
 
   /// Alla matcher ett datum (för att rätta facit).

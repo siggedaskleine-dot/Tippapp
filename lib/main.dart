@@ -209,7 +209,7 @@ class _HomePageState extends State<HomePage> {
   Widget _header() {
     final res = _result;
     final sub = res == null
-        ? 'Tips med odds ${_oddsText()}'
+        ? 'Tips med odds runt ${repo.targetOdds.toStringAsFixed(2)} (${_oddsText()})'
         : '${_visible.length} av ${res.tips.length} matcher'
             '${repo.remainingToday != null ? ' · ${repo.remainingToday} anrop kvar' : ''}';
     return Padding(
@@ -296,8 +296,9 @@ class _HomePageState extends State<HomePage> {
   String _oddsText() => '${repo.minOdds.toStringAsFixed(2)}–${repo.maxOdds.toStringAsFixed(2)}';
 
   Future<void> _editOdds() async {
-    var range = RangeValues(repo.minOdds, repo.maxOdds);
-    final picked = await showModalBottomSheet<RangeValues>(
+    var target = repo.targetOdds;
+    var spread = repo.spread;
+    final picked = await showModalBottomSheet<(double, double)>(
       context: context,
       backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -307,38 +308,53 @@ class _HomePageState extends State<HomePage> {
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Önskat odds', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            const Text('Tipsen väljs bara bland spel med odds i det här spannet.',
+            const Text('Tipsen väljs så nära det här oddset som möjligt, med bäst spelvärde inom spannet.',
                 style: TextStyle(color: AppColors.muted, fontSize: 13)),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             Center(
-              child: Text('${range.start.toStringAsFixed(2)} – ${range.end.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+              child: Text(target.toStringAsFixed(2),
+                  style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800, color: AppColors.accent)),
             ),
-            RangeSlider(
-              values: range,
-              min: 1.20,
+            Center(
+              child: Text(
+                  'Tips mellan ${(target - spread).toStringAsFixed(2)} och ${(target + spread).toStringAsFixed(2)}',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+            ),
+            Slider(
+              value: target,
+              min: 1.30,
               max: 4.00,
-              divisions: 56,
+              divisions: 54,
               activeColor: AppColors.accent,
-              labels: RangeLabels(range.start.toStringAsFixed(2), range.end.toStringAsFixed(2)),
-              onChanged: (v) {
-                if (v.end - v.start < 0.10) return;
-                setSheet(() => range = v);
-              },
+              label: target.toStringAsFixed(2),
+              onChanged: (v) => setSheet(() => target = double.parse(v.toStringAsFixed(2))),
             ),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, children: [
-              for (final (a, b) in const [(1.40, 1.70), (1.70, 2.10), (2.00, 2.60), (2.50, 3.50)])
-                ActionChip(
-                  label: Text('${a.toStringAsFixed(2)}–${b.toStringAsFixed(2)}'),
-                  onPressed: () => setSheet(() => range = RangeValues(a, b)),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final v in const [1.50, 1.70, 1.90, 2.20, 2.50, 3.00])
+                ChoiceChip(
+                  label: Text(v.toStringAsFixed(2)),
+                  selected: (target - v).abs() < 0.001,
+                  selectedColor: AppColors.accent,
+                  onSelected: (_) => setSheet(() => target = v),
                 ),
             ]),
             const SizedBox(height: 16),
+            const Text('Spann', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, children: [
+              for (final v in const [0.10, 0.20, 0.30, 0.50])
+                ChoiceChip(
+                  label: Text('± ${v.toStringAsFixed(2)}'),
+                  selected: (spread - v).abs() < 0.001,
+                  selectedColor: AppColors.accent2,
+                  onSelected: (_) => setSheet(() => spread = v),
+                ),
+            ]),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => Navigator.pop(ctx, range),
+                onPressed: () => Navigator.pop(ctx, (target, spread)),
                 child: const Padding(padding: EdgeInsets.all(12), child: Text('Spara')),
               ),
             ),
@@ -347,10 +363,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     if (picked == null) return;
-    await repo.setOddsRange(
-      double.parse(picked.start.toStringAsFixed(2)),
-      double.parse(picked.end.toStringAsFixed(2)),
-    );
+    await repo.setTargetOdds(picked.$1, picked.$2);
     setState(() => _result = null);
     _load();
   }
@@ -469,7 +482,7 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.only(right: 8),
               child: ActionChip(
                 avatar: const Icon(Icons.tune_rounded, size: 16, color: AppColors.accent),
-                label: Text('Odds ${_oddsText()}'),
+                label: Text('Odds ${repo.targetOdds.toStringAsFixed(2)}'),
                 backgroundColor: const Color(0xFF223058),
                 side: const BorderSide(color: AppColors.cardBorder),
                 onPressed: _editOdds,

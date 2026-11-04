@@ -383,4 +383,14 @@ void main() {
     expect(res.tips.where((t) => t.inOddsWindow), isNotEmpty);
     expect(TipSelector.forRange(1.70, 2.10).minProbability, 0.40);
   });
+
+  test('önskat odds styr tipsvalet', () async {
+    engine.selector = TipSelector.forTarget(1.70, 0.10);
+    final res = await engine.tipsForDay(0, now: DateTime(2026, 11, 4, 9));
+    final shown = res.tips.where((t) => t.inOddsWindow).toList();
+    expect(shown, isNotEmpty);
+    for (final t in shown) {
+      expect(t.tip.odds, inInclusiveRange(1.60, 1.80));
+    }
+  });
 }
