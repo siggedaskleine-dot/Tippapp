@@ -1,0 +1,54 @@
+name: Bygg APK
+
+on:
+  push:
+    branches: [fotbollstips]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+
+      - name: Testa motorn
+        working-directory: packages/tips_engine
+        run: dart pub get && dart test
+
+      - name: Analysera appen
+        run: flutter pub get && flutter analyze
+
+      - name: Bygg APK
+        run: flutter build apk --release
+
+      - name: Döp om
+        run: cp build/app/outputs/flutter-apk/app-release.apk Fotbollstips.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fotbollstips-apk
+          path: Fotbollstips.apk
+
+      - name: Publicera som release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=fotbollstips-v${{ github.run_number }}
+          gh release create "$TAG" Fotbollstips.apk \
+            --target "${{ github.sha }}" \
+            --title "Fotbollstips build ${{ github.run_number }}" \
+            --notes "Ladda ner Fotbollstips.apk på telefonen och installera. Första gången frågar appen efter din api-football-nyckel."
