@@ -340,4 +340,22 @@ void main() {
     expect(settle(BetType.home, f(0, 0, st: 'PST')), TipOutcome.voided);
     expect(settle(BetType.home, f(0, 0, st: 'NS')), TipOutcome.pending);
   });
+
+  test('ungdomsmatcher', () {
+    Fixture f(String league, String home, String away) => Fixture(
+          id: 1,
+          kickoff: DateTime.utc(2026),
+          status: 'NS',
+          league: LeagueRef(1, league, 'X', null, null, 2026, null),
+          home: TeamRef(1, home, null),
+          away: TeamRef(2, away, null),
+        );
+    expect(isYouthMatch(f('U19 Bundesliga', 'Bayern U19', 'Köln U19')), isTrue);
+    expect(isYouthMatch(f('Premier League 2', 'Chelsea U21', 'Arsenal U21')), isTrue);
+    expect(isYouthMatch(f('UEFA Youth League', 'A', 'B')), isTrue);
+    expect(isYouthMatch(f('Primavera 1', 'Roma', 'Lazio')), isTrue);
+    expect(isYouthMatch(f('U-18 Premier League', 'A', 'B')), isTrue);
+    expect(isYouthMatch(f('Premier League', 'Chelsea', 'Arsenal')), isFalse);
+    expect(isYouthMatch(f('Allsvenskan', 'Hammarby', 'AIK')), isFalse);
+  });
 }

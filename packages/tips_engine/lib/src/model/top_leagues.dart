@@ -1,3 +1,5 @@
+import '../api/models.dart';
+
 /// Ligor och turneringar med "kända lag" (api-footballs liga-id).
 const topLeagueIds = <int>{
   // Europeiska cuper och landslag
@@ -32,3 +34,13 @@ final _cupPattern = RegExp(
 /// (fixtures-svaret saknar ligatyp). Champions League, Europa League och
 /// Conference League räknas inte som cup här.
 bool isCupCompetition(String leagueName) => _cupPattern.hasMatch(leagueName);
+
+final _youthPattern = RegExp(
+  r'\bU[- ]?(1[3-9]|2[0-3])\b|\bunder[- ]?(1[3-9]|2[0-3])\b|\byouth\b|\bprimavera\b|\bjunior|\bjuvenil|\bjugend',
+  caseSensitive: false,
+);
+
+/// Ungdomsmatcher (U19, U18, U21, Primavera, Youth League ...), utifrån
+/// turneringens eller lagens namn.
+bool isYouthMatch(Fixture f) =>
+    _youthPattern.hasMatch(f.league.name) || _youthPattern.hasMatch(f.home.name) || _youthPattern.hasMatch(f.away.name);

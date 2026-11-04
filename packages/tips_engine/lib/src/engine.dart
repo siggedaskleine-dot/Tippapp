@@ -5,6 +5,7 @@ import 'api/models.dart';
 import 'model/commentary.dart';
 import 'model/predictor.dart';
 import 'model/streaks.dart';
+import 'model/top_leagues.dart';
 import 'model/team_stats.dart';
 import 'model/tip.dart';
 import 'model/tip_selector.dart';
@@ -126,7 +127,7 @@ class TipsEngine {
     final h2h = <int, List<Fixture>>{};
     if (options.fetchH2h) {
       onProgress?.call('Hämtar inbördes möten');
-      await Future.wait(picked.where((x) => !options.h2hOnlyInWindow || x.$7).map((x) async {
+      await Future.wait(picked.where((x) => (!options.h2hOnlyInWindow || x.$7) && !isYouthMatch(x.$1)).map((x) async {
         final remaining = api.remainingToday;
         if (remaining != null && remaining < options.reserveCalls) return;
         try {
