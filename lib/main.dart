@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
@@ -64,9 +66,21 @@ class _HomePageState extends State<HomePage> {
 
   TipsRepository get repo => widget.repo;
 
+  Timer? _ticker;
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    // Uppdatera listan varje minut så att matcher som startar försvinner.
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
     SharedPreferences.getInstance().then((prefs) {
       final v = prefs.getInt('min_played');
       if (v != null && mounted) setState(() => _minPlayed = v);
@@ -133,7 +147,10 @@ class _HomePageState extends State<HomePage> {
     final res = _result;
     if (res == null) return const [];
     final q = _query.toLowerCase();
+    final now = DateTime.now().toUtc();
     final list = res.tipsFor(_market).where((t) {
+      // Bara kommande matcher: allt som startat eller är klart döljs.
+      if (!t.fixture.notStarted || !t.fixture.kickoff.isAfter(now)) return false;
       if (_onlyOdds && t.tip.oddsFromModel) return false;
       if (_onlyWindow && !t.inOddsWindow) return false;
       if (t.minPlayed < _minPlayed) return false;
