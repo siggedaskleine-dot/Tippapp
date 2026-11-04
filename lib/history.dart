@@ -70,7 +70,8 @@ class SavedTip {
 /// Sparar visade tips lokalt och rättar dem när matcherna spelats.
 class TipHistory {
   static const _key = 'tip_history_v1';
-  final Map<int, SavedTip> _tips = {};
+  /// Nyckel: match-id + speltyp, så samma match kan ha t.ex. både 1X2- och Ö2.5-tips.
+  final Map<String, SavedTip> _tips = {};
 
   List<SavedTip> get all => _tips.values.toList()..sort((a, b) => b.kickoff.compareTo(a.kickoff));
 
@@ -81,7 +82,7 @@ class TipHistory {
     try {
       for (final j in jsonDecode(raw) as List) {
         final t = SavedTip.fromJson(j as Map<String, dynamic>);
-        _tips[t.fixtureId] = t;
+        _tips['${t.fixtureId}-${t.type.name}'] = t;
       }
     } catch (_) {
       // Trasig data: börja om hellre än att krascha.
@@ -102,7 +103,7 @@ class TipHistory {
     var changed = false;
     for (final t in tips) {
       if (!t.inOddsWindow || t.fixture.kickoff.isBefore(now)) continue;
-      _tips[t.fixture.id] = SavedTip.fromTip(t);
+      _tips['${t.fixture.id}-${t.tip.type.name}'] = SavedTip.fromTip(t);
       changed = true;
     }
     if (changed) await _save();

@@ -52,6 +52,7 @@ class _HomePageState extends State<HomePage> {
   bool _onlyTop = false;
   bool _hideCups = false;
   bool _hideYouth = true;
+  MarketFilter _market = MarketFilter.all;
   bool _onlyValue = false;
   String _query = '';
   DayResult? _result;
@@ -81,7 +82,7 @@ class _HomePageState extends State<HomePage> {
       final res = await repo.load(_day, force: force, onProgress: (m) {
         if (mounted) setState(() => _progress = m);
       });
-      await widget.history.record(res.tips);
+      await widget.history.record(res.tipsFor(_market));
       if (!mounted) return;
       setState(() => _result = res);
     } catch (e) {
@@ -126,7 +127,7 @@ class _HomePageState extends State<HomePage> {
     final res = _result;
     if (res == null) return const [];
     final q = _query.toLowerCase();
-    final list = res.tips.where((t) {
+    final list = res.tipsFor(_market).where((t) {
       if (_onlyOdds && t.tip.oddsFromModel) return false;
       if (_onlyWindow && !t.inOddsWindow) return false;
       if (_onlyTop && !isTopLeague(t.fixture.league.id)) return false;
@@ -285,6 +286,46 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _marketTabs() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(children: [
+        for (final m in MarketFilter.values)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: m == MarketFilter.values.last ? 0 : 6),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _market = m);
+                  final res = _result;
+                  if (res != null) widget.history.record(res.tipsFor(m));
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: _market == m
+                        ? const LinearGradient(colors: [AppColors.accent2, Color(0xFF6A5CFF)])
+                        : null,
+                    color: _market == m ? null : const Color(0xFF151D35),
+                    border: Border.all(color: _market == m ? Colors.transparent : AppColors.cardBorder),
+                  ),
+                  child: Text(m.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: _market == m ? Colors.white : AppColors.muted,
+                      )),
+                ),
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+
   Widget _controls() {
     Widget chip(String label, SortBy s, IconData icon) {
       final on = _sort == s;
@@ -337,6 +378,8 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+        const SizedBox(height: 10),
+        _marketTabs(),
         const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,

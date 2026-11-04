@@ -51,11 +51,19 @@ class EngineOptions {
 
 class DayResult {
   final DateTime date;
+
+  /// Bästa tipset per match oavsett speltyp.
   final List<MatchTip> tips;
+
+  /// Bästa tipset per match inom varje speltyp.
+  final Map<MarketFilter, List<MatchTip>> byMarket;
   final int networkCalls;
   final int? remainingToday;
   final List<String> warnings;
-  const DayResult(this.date, this.tips, this.networkCalls, this.remainingToday, this.warnings);
+  const DayResult(this.date, this.tips, this.networkCalls, this.remainingToday, this.warnings,
+      {this.byMarket = const {}});
+
+  List<MatchTip> tipsFor(MarketFilter m) => m == MarketFilter.all ? tips : (byMarket[m] ?? const []);
 }
 
 class TipsEngine {
@@ -111,23 +119,29 @@ class TipsEngine {
       }
     }));
 
-    // Först modell och tipsval för alla matcher.
-    final picked = <(Fixture, LeagueTable, Prediction, MatchOdds?, TipCandidate, List<TipCandidate>, bool)>[];
+    // Först modell och tipsval för alla matcher, ett tips per speltyp.
+    final picked = <(Fixture, LeagueTable, Prediction, MatchOdds?, Map<MarketFilter, (TipCandidate, List<TipCandidate>, bool)>)>[];
     for (final e in byLeague.entries) {
       final table = tables[e.key]!;
       for (final f in e.value) {
         final p = predictor.predict(table, f.home.id, f.away.id);
         final o = odds[f.id];
-        final (tip, alts) = selector.select(p, o);
-        picked.add((f, table, p, o, tip, alts, !tip.oddsFromModel && selector.inWindow(tip)));
+        final per = <MarketFilter, (TipCandidate, List<TipCandidate>, bool)>{};
+        for (final m in MarketFilter.values) {
+          final (tip, alts) = selector.select(p, o, market: m);
+          per[m] = (tip, alts, !tip.oddsFromModel && selector.inWindow(tip) && m.allows(tip.type));
+        }
+        picked.add((f, table, p, o, per));
       }
     }
 
-    // Inbördes möten hämtas parallellt för de matcher som visas.
+    // Inbördes möten hämtas parallellt för de matcher som kan visas.
     final h2h = <int, List<Fixture>>{};
     if (options.fetchH2h) {
       onProgress?.call('Hämtar inbördes möten');
-      await Future.wait(picked.where((x) => (!options.h2hOnlyInWindow || x.$7) && !isYouthMatch(x.$1)).map((x) async {
+      await Future.wait(picked
+          .where((x) => (!options.h2hOnlyInWindow || x.$5.values.any((v) => v.$3)) && !isYouthMatch(x.$1))
+          .map((x) async {
         final remaining = api.remainingToday;
         if (remaining != null && remaining < options.reserveCalls) return;
         try {
@@ -138,8 +152,8 @@ class TipsEngine {
       }));
     }
 
-    final tips = <MatchTip>[];
-    for (final (f, table, p, o, tip, alts, inWindow) in picked) {
+    final byMarket = {for (final m in MarketFilter.values) m: <MatchTip>[]};
+    for (final (f, table, p, o, per) in picked) {
       final hp = table[f.home.id];
       final ap = table[f.away.id];
       final formH = hp?.form.take(5).toList() ?? const <String>[];
@@ -149,24 +163,30 @@ class TipsEngine {
         ...teamStreaks(f.away.name, ap?.results ?? const []),
         ...h2hStreaks(f.home, f.away, h2h[f.id] ?? const []),
       ]);
-      tips.add(MatchTip(
-        fixture: f,
-        prediction: p,
-        odds: o,
-        tip: tip,
-        alternatives: alts,
-        comment: buildComment(f, p, tip, formH, formA, streaks: streaks),
-        analysis: buildComment(f, p, tip, formH, formA),
-        formHome: formH,
-        formAway: formA,
-        formScoreHome: hp?.formScore() ?? 0.5,
-        formScoreAway: ap?.formScore() ?? 0.5,
-        inOddsWindow: inWindow,
-        streaks: streaks,
-      ));
+      for (final MapEntry(key: m, value: (tip, alts, inWindow)) in per.entries) {
+        byMarket[m]!.add(MatchTip(
+          fixture: f,
+          prediction: p,
+          odds: o,
+          tip: tip,
+          alternatives: alts,
+          comment: buildComment(f, p, tip, formH, formA, streaks: streaks),
+          analysis: buildComment(f, p, tip, formH, formA),
+          formHome: formH,
+          formAway: formA,
+          formScoreHome: hp?.formScore() ?? 0.5,
+          formScoreAway: ap?.formScore() ?? 0.5,
+          inOddsWindow: inWindow,
+          streaks: streaks,
+        ));
+      }
     }
-    sortTips(tips, SortBy.kickoff);
-    return DayResult(date, tips, api.networkCalls - callsBefore, api.remainingToday, warnings);
+    for (final l in byMarket.values) {
+      sortTips(l, SortBy.kickoff);
+    }
+    final tips = byMarket[MarketFilter.all]!;
+    return DayResult(date, tips, api.networkCalls - callsBefore, api.remainingToday, warnings,
+        byMarket: byMarket);
   }
 
   Future<LeagueTable> _leagueTable(int leagueId, int season, List<Fixture> upcoming) async {

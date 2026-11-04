@@ -2,6 +2,25 @@ import '../api/models.dart';
 import 'predictor.dart';
 import 'tip.dart';
 
+/// Vilka speltyper användaren vill se tips på.
+enum MarketFilter { all, matchResult, over25, btts }
+
+extension MarketFilterX on MarketFilter {
+  bool allows(BetType t) => switch (this) {
+        MarketFilter.all => true,
+        MarketFilter.matchResult => t == BetType.home || t == BetType.draw || t == BetType.away,
+        MarketFilter.over25 => t == BetType.over25,
+        MarketFilter.btts => t == BetType.bttsYes,
+      };
+
+  String get label => switch (this) {
+        MarketFilter.all => 'Alla',
+        MarketFilter.matchResult => '1X2',
+        MarketFilter.over25 => 'Över 2.5',
+        MarketFilter.btts => 'BLGM',
+      };
+}
+
 class TipSelector {
   final double targetOdds;
   final double minOdds;
@@ -55,8 +74,10 @@ class TipSelector {
   /// Väljer tipset: inom oddsfönstret vinner bäst spelvärde med avdrag för
   /// avstånd till mitten av fönstret (1.70–2.10). Ligger inget i fönstret tas det närmast
   /// mitten, och tipset markeras som utanför fönstret.
-  (TipCandidate, List<TipCandidate>) select(Prediction p, MatchOdds? o) {
-    final cands = candidates(p, o);
+  (TipCandidate, List<TipCandidate>) select(Prediction p, MatchOdds? o, {MarketFilter market = MarketFilter.all}) {
+    final all = candidates(p, o);
+    final allowed = all.where((c) => market.allows(c.type)).toList();
+    final cands = allowed.isEmpty ? all : allowed;
     final inside = cands.where(inWindow).toList();
     double score(TipCandidate c) => c.edge - distancePenalty * (c.odds - targetOdds).abs();
 
@@ -69,7 +90,7 @@ class TipSelector {
         ..sort((a, b) => (a.odds - targetOdds).abs().compareTo((b.odds - targetOdds).abs()));
       best = sorted.first;
     }
-    final rest = cands.where((c) => c.type != best.type).toList()
+    final rest = all.where((c) => c.type != best.type).toList()
       ..sort((a, b) => b.probability.compareTo(a.probability));
     return (best, rest);
   }

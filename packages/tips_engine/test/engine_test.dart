@@ -239,6 +239,15 @@ void main() {
     // Med marknaden invägd har alla tre ett spelbart tips i fönstret.
     expect(res.tips.where((t) => t.inOddsWindow).map((t) => t.fixture.id), [3, 1, 2]);
     expect(fake.calls.where((u) => u.path == '/fixtures/headtohead'), hasLength(3));
+
+    // Val av speltyp: bara den typen visas.
+    for (final m in MarketFilter.values) {
+      final list = res.tipsFor(m);
+      expect(list, hasLength(3));
+      for (final t in list.where((t) => t.inOddsWindow)) {
+        expect(m.allows(t.tip.type), isTrue, reason: '${m.label}: ${t.tip.type}');
+      }
+    }
     for (final t in res.tips) {
       expect(t.streaks, isNotEmpty); // lagens egna streaks eller raden "Inga tydliga streaks"
       // ignore: avoid_print
