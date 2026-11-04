@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#1B2A55"/>
+      <stop offset="0.55" stop-color="#0F1834"/>
+      <stop offset="1" stop-color="#070B18"/>
+    </radialGradient>
+    <linearGradient id="neon" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#3DDC97"/>
+      <stop offset="1" stop-color="#7CFFB2"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE08A"/>
+      <stop offset="1" stop-color="#F5B83D"/>
+    </linearGradient>
+    <radialGradient id="ball" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.7" stop-color="#E6EBF5"/>
+      <stop offset="1" stop-color="#AEB8CF"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  
+  <!-- stadionljus -->
+  <g opacity="0" fill="#9FB4FF">
+    <path d="M512 -40 L300 560 L724 560 Z"/>
+  </g>
+  <!-- rutnät som en oddstavla -->
+  <g stroke="#2A3B6E" stroke-width="3" opacity="0.6">
+    <line x1="140" y1="740" x2="884" y2="740"/>
+    <line x1="140" y1="640" x2="884" y2="640"/>
+    <line x1="140" y1="540" x2="884" y2="540"/>
+  </g>
+  <!-- boll -->
+  <g filter="url(#shadow)" transform="translate(430 470)">
+    <circle r="230" fill="url(#ball)"/>
+    <g fill="#0F1834">
+      <polygon points="0,-78 74,-24 46,63 -46,63 -74,-24"/>
+      <polygon points="0,-230 40,-200 28,-150 -28,-150 -40,-200" opacity="0.95"/>
+      <polygon points="219,-71 205,-20 150,-22 133,-70 175,-105"/>
+      <polygon points="135,186 92,200 70,150 112,112 160,140"/>
+      <polygon points="-135,186 -160,140 -112,112 -70,150 -92,200"/>
+      <polygon points="-219,-71 -175,-105 -133,-70 -150,-22 -205,-20"/>
+    </g>
+    <g stroke="#0F1834" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.9">
+      <line x1="0" y1="-78" x2="0" y2="-150"/>
+      <line x1="74" y1="-24" x2="140" y2="-48"/>
+      <line x1="46" y1="63" x2="90" y2="125"/>
+      <line x1="-46" y1="63" x2="-90" y2="125"/>
+      <line x1="-74" y1="-24" x2="-140" y2="-48"/>
+    </g>
+  </g>
+  <!-- stigande trendpil -->
+  <g filter="url(#glow)">
+    <polyline points="150,800 360,660 500,720 820,400" fill="none" stroke="url(#neon)" stroke-width="56" stroke-linecap="round" stroke-linejoin="round"/>
+    <polygon points="900,320 880,500 720,340" fill="#7CFFB2"/>
+  </g>
+  <!-- oddsbricka -->
+  <g filter="url(#shadow)" transform="translate(690 150)">
+    <rect x="0" y="0" width="250" height="120" rx="34" fill="url(#gold)"/>
+    <text x="125" y="84" font-family="DejaVu Sans, Arial, sans-serif" font-size="74" font-weight="800" fill="#1A1405" text-anchor="middle">1.85</text>
+  </g>
+</svg>
