@@ -69,7 +69,8 @@ class DayResult {
 class TipsEngine {
   final ApiFootballClient api;
   final Predictor predictor;
-  final TipSelector selector;
+  /// Kan bytas när användaren ändrar oddsfönstret.
+  TipSelector selector;
   final EngineOptions options;
 
   /// Ligor där vi sett att xG saknas, så vi inte frågar igen i onödan.

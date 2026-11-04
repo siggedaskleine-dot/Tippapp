@@ -77,7 +77,7 @@ class MatchTip {
   final double formScoreHome; // 0..1
   final double formScoreAway;
 
-  /// true när tipsets odds ligger i oddsfönstret (1.70–2.10).
+  /// true när tipsets odds ligger i oddsfönstret (standard 1.70–2.10).
   final bool inOddsWindow;
 
   /// Streaks och mönster, de mest anmärkningsvärda först.

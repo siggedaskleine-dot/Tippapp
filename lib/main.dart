@@ -209,7 +209,7 @@ class _HomePageState extends State<HomePage> {
   Widget _header() {
     final res = _result;
     final sub = res == null
-        ? 'Tips med odds 1.70–2.10'
+        ? 'Tips med odds ${_oddsText()}'
         : '${_visible.length} av ${res.tips.length} matcher'
             '${repo.remainingToday != null ? ' · ${repo.remainingToday} anrop kvar' : ''}';
     return Padding(
@@ -291,6 +291,68 @@ class _HomePageState extends State<HomePage> {
         ]),
       ),
     );
+  }
+
+  String _oddsText() => '${repo.minOdds.toStringAsFixed(2)}–${repo.maxOdds.toStringAsFixed(2)}';
+
+  Future<void> _editOdds() async {
+    var range = RangeValues(repo.minOdds, repo.maxOdds);
+    final picked = await showModalBottomSheet<RangeValues>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Önskat odds', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            const Text('Tipsen väljs bara bland spel med odds i det här spannet.',
+                style: TextStyle(color: AppColors.muted, fontSize: 13)),
+            const SizedBox(height: 20),
+            Center(
+              child: Text('${range.start.toStringAsFixed(2)} – ${range.end.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+            ),
+            RangeSlider(
+              values: range,
+              min: 1.20,
+              max: 4.00,
+              divisions: 56,
+              activeColor: AppColors.accent,
+              labels: RangeLabels(range.start.toStringAsFixed(2), range.end.toStringAsFixed(2)),
+              onChanged: (v) {
+                if (v.end - v.start < 0.10) return;
+                setSheet(() => range = v);
+              },
+            ),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, children: [
+              for (final (a, b) in const [(1.40, 1.70), (1.70, 2.10), (2.00, 2.60), (2.50, 3.50)])
+                ActionChip(
+                  label: Text('${a.toStringAsFixed(2)}–${b.toStringAsFixed(2)}'),
+                  onPressed: () => setSheet(() => range = RangeValues(a, b)),
+                ),
+            ]),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx, range),
+                child: const Padding(padding: EdgeInsets.all(12), child: Text('Spara')),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    await repo.setOddsRange(
+      double.parse(picked.start.toStringAsFixed(2)),
+      double.parse(picked.end.toStringAsFixed(2)),
+    );
+    setState(() => _result = null);
+    _load();
   }
 
   Widget _marketTabs() {
@@ -405,6 +467,16 @@ class _HomePageState extends State<HomePage> {
           child: Row(children: [
             Padding(
               padding: const EdgeInsets.only(right: 8),
+              child: ActionChip(
+                avatar: const Icon(Icons.tune_rounded, size: 16, color: AppColors.accent),
+                label: Text('Odds ${_oddsText()}'),
+                backgroundColor: const Color(0xFF223058),
+                side: const BorderSide(color: AppColors.cardBorder),
+                onPressed: _editOdds,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
               child: PopupMenuButton<int>(
                 initialValue: _minPlayed,
                 color: AppColors.card,
@@ -427,7 +499,7 @@ class _HomePageState extends State<HomePage> {
             toggle('Kända lag', _onlyTop, (v) => setState(() => _onlyTop = v)),
             toggle('Dölj cupmatcher', _hideCups, (v) => setState(() => _hideCups = v)),
             toggle('Dölj ungdom', _hideYouth, (v) => setState(() => _hideYouth = v)),
-            toggle('Odds 1.70–2.10', _onlyWindow, (v) => setState(() => _onlyWindow = v)),
+            toggle('Bara inom oddsen', _onlyWindow, (v) => setState(() => _onlyWindow = v)),
             toggle('Bara med odds', _onlyOdds, (v) => setState(() => _onlyOdds = v)),
             toggle('Bara spelvärde', _onlyValue, (v) => setState(() => _onlyValue = v)),
           ]),

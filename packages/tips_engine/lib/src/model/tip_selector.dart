@@ -42,6 +42,15 @@ class TipSelector {
     this.marketWeight = 0.4,
   });
 
+  /// Selector för ett valfritt oddsfönster. Måloddset blir mitten av
+  /// fönstret och sannolikhetskravet följer med: minst 85 % av den
+  /// sannolikhet som måloddset motsvarar, högst 40 %.
+  factory TipSelector.forRange(double minOdds, double maxOdds) {
+    final target = (minOdds + maxOdds) / 2;
+    final minProb = (0.85 / target).clamp(0.10, 0.40).toDouble();
+    return TipSelector(minOdds: minOdds, maxOdds: maxOdds, targetOdds: target, minProbability: minProb);
+  }
+
   /// Hur mycket spelbolagets (marginalrensade) sannolikhet vägs in.
   /// Marknaden fångar skador, avstängningar och laguttagningar som modellen
   /// inte ser, så en blandning träffar oftare än modellen ensam.
@@ -72,7 +81,7 @@ class TipSelector {
   }
 
   /// Väljer tipset: inom oddsfönstret vinner bäst spelvärde med avdrag för
-  /// avstånd till mitten av fönstret (1.70–2.10). Ligger inget i fönstret tas det närmast
+  /// avstånd till mitten av fönstret (standard 1.70–2.10). Ligger inget i fönstret tas det närmast
   /// mitten, och tipset markeras som utanför fönstret.
   (TipCandidate, List<TipCandidate>) select(Prediction p, MatchOdds? o, {MarketFilter market = MarketFilter.all}) {
     final all = candidates(p, o);

@@ -373,4 +373,14 @@ void main() {
     expect(isYouthMatch(f('Premier League', 'Chelsea', 'Arsenal')), isFalse);
     expect(isYouthMatch(f('Allsvenskan', 'Hammarby', 'AIK')), isFalse);
   });
+
+  test('eget oddsfönster', () async {
+    engine.selector = TipSelector.forRange(2.5, 4.0);
+    final res = await engine.tipsForDay(0, now: DateTime(2026, 11, 4, 9));
+    for (final t in res.tips.where((t) => t.inOddsWindow)) {
+      expect(t.tip.odds, inInclusiveRange(2.5, 4.0));
+    }
+    expect(res.tips.where((t) => t.inOddsWindow), isNotEmpty);
+    expect(TipSelector.forRange(1.70, 2.10).minProbability, 0.40);
+  });
 }
