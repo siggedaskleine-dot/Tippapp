@@ -30,7 +30,7 @@ jobs:
         run: dart pub get && dart test
 
       - name: Analysera appen
-        run: flutter pub get && flutter analyze
+        run: flutter pub get && flutter analyze && flutter test
 
       - name: Bygg APK
         run: flutter build apk --release
