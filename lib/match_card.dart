@@ -107,6 +107,10 @@ class _MatchCardState extends State<MatchCard> {
                   const SizedBox(height: 12),
                   _ProbBar(p: t.tip.probability, color: rc),
                   const SizedBox(height: 12),
+                  if (t.formReason != null) ...[
+                    FormBadge(t.formReason!),
+                    const SizedBox(height: 10),
+                  ],
                   Text(t.analysis.isEmpty ? t.comment : t.analysis,
                       style: const TextStyle(color: Color(0xFFC5CCE0), fontSize: 13, height: 1.4)),
                   if (t.streaks.isNotEmpty) ...[
@@ -257,4 +261,35 @@ class TeamLogo extends StatelessWidget {
       errorBuilder: (_, _, _) => placeholder,
     );
   }
+}
+
+
+/// Visar varför tipset är ett formspel, t.ex. "Malmö 4 raka segrar, Sirius 3 raka förluster".
+class FormBadge extends StatelessWidget {
+  final String reason;
+  const FormBadge(this.reason, {super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0x1F22C55E),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0x5522C55E)),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.local_fire_department_rounded, size: 16, color: Color(0xFF4ADE80)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: [
+                const TextSpan(text: 'Formspel  ', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4ADE80))),
+                TextSpan(text: reason),
+              ]),
+              style: const TextStyle(fontSize: 12, height: 1.35, color: Color(0xFFDDE6F5)),
+            ),
+          ),
+        ]),
+      );
 }

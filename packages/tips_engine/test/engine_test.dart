@@ -173,7 +173,7 @@ void main() {
   setUp(() {
     fake = FakeApi();
     api = ApiFootballClient(apiKey: 'test-key', cache: MemoryCache(), httpClient: MockClient(fake.handle));
-    engine = TipsEngine(api);
+    engine = TipsEngine(api, requireForm: false);
   });
 
   test('poisson-marknader summerar rätt', () {
@@ -392,5 +392,55 @@ void main() {
     for (final t in shown) {
       expect(t.tip.odds, inInclusiveRange(1.60, 1.80));
     }
+  });
+
+  group('formspel', () {
+    TeamProfile team(List<(int, int)> res) {
+      final p = TeamProfile(1);
+      var d = DateTime(2026, 10, 30);
+      for (final (gf, ga) in res) {
+        p.matches.add(RecentMatch(d, 'X', true, gf, ga));
+        d = d.subtract(const Duration(days: 7));
+      }
+      return p;
+    }
+
+    test('lag i form mot lag i dålig form ger 1 eller 2', () {
+      final hot = team([(2, 0), (3, 1), (1, 0), (1, 1), (0, 1), (2, 2)]);
+      final cold = team([(0, 2), (1, 3), (0, 1), (2, 2), (1, 0), (0, 0)]);
+      final s = formSignals('Malmö', hot, 'Sirius', cold);
+      expect(s.allows(BetType.home), isTrue);
+      expect(s.reasons[BetType.home], contains('3 raka segrar'));
+      expect(s.reasons[BetType.home], contains('3 raka förluster'));
+      expect(s.allows(BetType.away), isFalse);
+      expect(formSignals('Sirius', cold, 'Malmö', hot).allows(BetType.away), isTrue);
+      // Bra form mot medelmåttigt motstånd räcker inte.
+      final mid = team([(1, 1), (2, 1), (0, 1), (1, 1), (2, 0), (0, 2)]);
+      expect(formSignals('Malmö', hot, 'X', mid).allows(BetType.home), isFalse);
+    });
+
+    test('målrika lag ger Ö2.5 och BLGM', () {
+      final a = team([(2, 2), (3, 1), (1, 2), (2, 1), (0, 1), (3, 3)]);
+      final b = team([(1, 3), (2, 2), (4, 1), (1, 1), (2, 3), (1, 2)]);
+      final s = formSignals('A', a, 'B', b);
+      expect(s.allows(BetType.over25), isTrue);
+      expect(s.allows(BetType.bttsYes), isTrue);
+      final tight = team([(1, 0), (0, 0), (1, 1), (0, 1), (2, 0), (0, 0)]);
+      final t = formSignals('A', a, 'C', tight);
+      expect(t.allows(BetType.over25), isFalse);
+      expect(t.allows(BetType.bttsYes), isFalse);
+    });
+
+    test('med formkrav visas bara formspel', () async {
+      engine.requireForm = true;
+      final day = await engine.tipsForDay(0, now: DateTime(2026, 11, 4, 8));
+      for (final m in MarketFilter.values) {
+        for (final t in day.tipsFor(m).where((t) => t.inOddsWindow)) {
+          expect(t.formReason, isNotNull);
+          expect(t.comment, startsWith('Formspel:'));
+          expect(t.deepAnalysis.first, startsWith('Formspel:'));
+        }
+      }
+    });
   });
 }

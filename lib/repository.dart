@@ -38,6 +38,17 @@ class TipsRepository {
     await prefs.setDouble('target_odds', target);
     await prefs.setDouble('odds_spread', spread);
   }
+  /// Bara formspel (lag i form mot lag i dålig form, målrika lag för Ö2.5/BLGM).
+  bool requireForm = true;
+
+  Future<void> setRequireForm(bool v) async {
+    requireForm = v;
+    _engine?.requireForm = v;
+    _cacheByDay.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('require_form', v);
+  }
+
   bool get hasKey => (_key ?? '').isNotEmpty;
 
   Future<void> init() async {
@@ -45,10 +56,11 @@ class TipsRepository {
     final oldMin = prefs.getDouble('min_odds'), oldMax = prefs.getDouble('max_odds');
     targetOdds = prefs.getDouble('target_odds') ?? (oldMin != null && oldMax != null ? (oldMin + oldMax) / 2 : 1.90);
     spread = prefs.getDouble('odds_spread') ?? (oldMin != null && oldMax != null ? (oldMax - oldMin) / 2 : 0.20);
+    requireForm = prefs.getBool('require_form') ?? true;
     if (_demo) {
       _key = 'demo';
       _api = ApiFootballClient(apiKey: 'demo', cache: MemoryCache(), httpClient: demoClient());
-      _engine = TipsEngine(_api!, selector: _selector);
+      _engine = TipsEngine(_api!, selector: _selector, requireForm: requireForm);
       return;
     }
     _key = prefs.getString(_prefKey);
@@ -68,7 +80,7 @@ class TipsRepository {
     _api?.close();
     final dir = await getApplicationCacheDirectory();
     _api = ApiFootballClient(apiKey: _key!, cache: FileCache('${dir.path}/api'));
-    _engine = TipsEngine(_api!, selector: _selector);
+    _engine = TipsEngine(_api!, selector: _selector, requireForm: requireForm);
   }
 
   /// Alla matcher ett datum (för att rätta facit).

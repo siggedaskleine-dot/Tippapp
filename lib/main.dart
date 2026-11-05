@@ -152,6 +152,7 @@ class _HomePageState extends State<HomePage> {
     final list = res.tipsFor(_market).where((t) {
       // Bara kommande matcher: allt som startat eller är klart döljs.
       if (!t.fixture.notStarted || !t.fixture.kickoff.isAfter(now)) return false;
+      if (repo.requireForm && t.formReason == null) return false;
       if (_onlyOdds && t.tip.oddsFromModel) return false;
       if (_onlyWindow && !t.inOddsWindow) return false;
       if (t.minPlayed < _minPlayed) return false;
@@ -204,10 +205,19 @@ class _HomePageState extends State<HomePage> {
                 else if (_error != null && _result == null)
                   SliverFillRemaining(hasScrollBody: false, child: _errorView())
                 else if (tips.isEmpty)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
-                      child: Text('Inga matcher matchar filtret', style: TextStyle(color: AppColors.muted)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          repo.requireForm
+                              ? 'Inga formspel matchar filtret.\nLag i bra form har ofta låga odds, så prova ett lägre önskat odds eller slå av Formspel.'
+                              : 'Inga matcher matchar filtret',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.muted, height: 1.4),
+                        ),
+                      ),
                     ),
                   )
                 else
@@ -555,6 +565,10 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
+            toggle('Formspel', repo.requireForm, (v) async {
+              await repo.setRequireForm(v);
+              _load();
+            }),
             toggle('Kända lag', _onlyTop, (v) => setState(() => _onlyTop = v)),
             toggle('Dölj cupmatcher', _hideCups, (v) => setState(() => _hideCups = v)),
             toggle('Dölj ungdom', _hideYouth, (v) => setState(() => _hideYouth = v)),

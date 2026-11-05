@@ -8,6 +8,7 @@ import 'model/streaks.dart';
 import 'model/top_leagues.dart';
 import 'model/team_stats.dart';
 import 'model/tip.dart';
+import 'model/form_signals.dart';
 import 'model/tip_selector.dart';
 
 enum SortBy { kickoff, odds, form, probability }
@@ -71,6 +72,10 @@ class TipsEngine {
   final Predictor predictor;
   /// Kan bytas när användaren ändrar oddsfönstret.
   TipSelector selector;
+
+  /// Bara formspel: 1/2 när ett lag i bra form möter ett i dålig form,
+  /// Ö2.5/BLGM när båda lagen ofta är med i målrika matcher.
+  bool requireForm;
   final EngineOptions options;
 
   /// Ligor där vi sett att xG saknas, så vi inte frågar igen i onödan.
@@ -81,6 +86,7 @@ class TipsEngine {
     this.predictor = const Predictor(),
     this.selector = const TipSelector(),
     this.options = const EngineOptions(),
+    this.requireForm = true,
   });
 
   /// [dayOffset] 0 = idag, 1 = imorgon, 2 = övermorgon.
@@ -121,18 +127,27 @@ class TipsEngine {
     }));
 
     // Först modell och tipsval för alla matcher, ett tips per speltyp.
-    final picked = <(Fixture, LeagueTable, Prediction, MatchOdds?, Map<MarketFilter, (TipCandidate, List<TipCandidate>, bool)>)>[];
+    final picked = <(Fixture, LeagueTable, Prediction, MatchOdds?, Map<MarketFilter, (TipCandidate, List<TipCandidate>, bool)>, FormSignals)>[];
     for (final e in byLeague.entries) {
       final table = tables[e.key]!;
       for (final f in e.value) {
         final p = predictor.predict(table, f.home.id, f.away.id);
         final o = odds[f.id];
+        final signals = formSignals(f.home.name, table[f.home.id], f.away.name, table[f.away.id]);
+        final only = requireForm ? signals.types : null;
         final per = <MarketFilter, (TipCandidate, List<TipCandidate>, bool)>{};
         for (final m in MarketFilter.values) {
-          final (tip, alts) = selector.select(p, o, market: m);
-          per[m] = (tip, alts, !tip.oddsFromModel && selector.inWindow(tip) && m.allows(tip.type));
+          final (tip, alts) = selector.select(p, o, market: m, only: only);
+          per[m] = (
+            tip,
+            alts,
+            !tip.oddsFromModel &&
+                selector.inWindow(tip) &&
+                m.allows(tip.type) &&
+                (only == null || only.contains(tip.type)),
+          );
         }
-        picked.add((f, table, p, o, per));
+        picked.add((f, table, p, o, per, signals));
       }
     }
 
@@ -154,7 +169,7 @@ class TipsEngine {
     }
 
     final byMarket = {for (final m in MarketFilter.values) m: <MatchTip>[]};
-    for (final (f, table, p, o, per) in picked) {
+    for (final (f, table, p, o, per, signals) in picked) {
       final hp = table[f.home.id];
       final ap = table[f.away.id];
       final formH = hp?.form.take(5).toList() ?? const <String>[];
@@ -165,13 +180,26 @@ class TipsEngine {
         ...h2hStreaks(f.home, f.away, h2h[f.id] ?? const []),
       ]);
       for (final MapEntry(key: m, value: (tip, alts, inWindow)) in per.entries) {
+        final formReason = signals.reasons[tip.type];
+        final deep = buildDeepAnalysis(
+          f: f,
+          p: p,
+          tip: tip,
+          alternatives: alts,
+          home: hp,
+          away: ap,
+          league: table.averages,
+          streaks: streaks,
+          selector: selector,
+        );
         byMarket[m]!.add(MatchTip(
           fixture: f,
           prediction: p,
           odds: o,
           tip: tip,
           alternatives: alts,
-          comment: buildComment(f, p, tip, formH, formA, streaks: streaks),
+          comment: '${formReason != null ? 'Formspel: $formReason. ' : ''}'
+              '${buildComment(f, p, tip, formH, formA, streaks: streaks)}',
           analysis: buildComment(f, p, tip, formH, formA),
           formHome: formH,
           formAway: formA,
@@ -181,17 +209,14 @@ class TipsEngine {
           streaks: streaks,
           homeProfile: hp,
           awayProfile: ap,
-          deepAnalysis: buildDeepAnalysis(
-            f: f,
-            p: p,
-            tip: tip,
-            alternatives: alts,
-            home: hp,
-            away: ap,
-            league: table.averages,
-            streaks: streaks,
-            selector: selector,
-          ),
+          deepAnalysis: [
+            if (formReason != null) 'Formspel: $formReason.',
+            if (formReason == null && requireForm)
+              'Formkrav ej uppfyllt: inget lag har tydlig vinst- eller förlustsvit mot motståndet, '
+                  'och lagen är inte båda med i målrika matcher.',
+            ...deep,
+          ],
+          formReason: formReason,
         ));
       }
     }

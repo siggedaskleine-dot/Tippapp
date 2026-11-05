@@ -6,6 +6,7 @@ export 'src/api/cache.dart';
 export 'src/api/models.dart';
 export 'src/engine.dart';
 export 'src/model/commentary.dart';
+export 'src/model/form_signals.dart';
 export 'src/model/predictor.dart';
 export 'src/model/settle.dart';
 export 'src/model/streaks.dart';

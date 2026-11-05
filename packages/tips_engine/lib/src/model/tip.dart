@@ -90,6 +90,10 @@ class MatchTip {
   /// Djupare analys i stycken: varför just det här spelet.
   final List<String> deepAnalysis;
 
+  /// Varför tipset klarar formkraven, t.ex. "Malmö 4 raka segrar, Sirius 3 raka förluster".
+  /// null när tipset inte är ett formspel.
+  final String? formReason;
+
   const MatchTip({
     required this.fixture,
     required this.prediction,
@@ -107,6 +111,7 @@ class MatchTip {
     this.homeProfile,
     this.awayProfile,
     this.deepAnalysis = const [],
+    this.formReason,
   });
 
   /// Det minsta antalet spelade matcher i säsongen av de två lagen.
@@ -150,6 +155,7 @@ class MatchTip {
         'formScore': formScore,
         'inOddsWindow': inOddsWindow,
         'deepAnalysis': deepAnalysis,
+        'formReason': formReason,
         'streaks': [for (final s in streaks) {'text': s.text, 'kind': s.kind.name}],
         'bookmaker': odds?.bookmaker,
         'prediction': prediction.toJson(),
