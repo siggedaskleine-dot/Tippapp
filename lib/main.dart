@@ -50,7 +50,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _day = 0;
-  SortBy _sort = SortBy.kickoff;
+  SortBy _sort = SortBy.form;
   bool _onlyOdds = true;
   bool _onlyWindow = true;
   bool _onlyTop = false;

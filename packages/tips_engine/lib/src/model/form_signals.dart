@@ -4,11 +4,15 @@ import 'tip.dart';
 /// Resultatet av formkontrollen för en match: vilka speltyper som klarar
 /// kraven och varför.
 class FormSignals {
-  final Map<BetType, String> reasons;
-  const FormSignals(this.reasons);
+  /// Formstyrka 0..100 och förklaring per speltyp som klarar kraven.
+  final Map<BetType, (double, String)> signals;
+  const FormSignals(this.signals);
 
-  bool allows(BetType t) => reasons.containsKey(t);
-  Set<BetType> get types => reasons.keys.toSet();
+  bool allows(BetType t) => signals.containsKey(t);
+  Set<BetType> get types => signals.keys.toSet();
+  String? reason(BetType t) => signals[t]?.$2;
+  double? strength(BetType t) => signals[t]?.$1;
+  Map<BetType, String> get reasons => {for (final e in signals.entries) e.key: e.value.$2};
 }
 
 class _Form {
@@ -41,54 +45,87 @@ class _Form {
   double get gf6 => n6 == 0 ? 0 : last.fold<int>(0, (s, m) => s + m.goalsFor) / n6;
   double get ga6 => n6 == 0 ? 0 : last.fold<int>(0, (s, m) => s + m.goalsAgainst) / n6;
 
-  /// Bra form: 3+ raka segrar, eller 4 segrar av 5, eller obesegrade i 5 med 3+ segrar.
-  String? good(String name) {
-    if (last.length < 4) return null;
+  int get points6 => last.fold(0, (s, m) => s + (m.goalsFor > m.goalsAgainst ? 3 : m.goalsFor == m.goalsAgainst ? 1 : 0));
+
+  /// Andel av maxpoängen senaste 6, 0..1.
+  double get ppgShare => n6 == 0 ? 0.5 : points6 / (3 * n6);
+
+  String _pts(String name) => '$name $points6 av ${3 * n6} p senaste $n6';
+
+  /// Tydligaste formbeskrivningen: raka segrar, X segrar av 5 eller poäng.
+  String goodText(String name) {
     if (winRun >= 3) return '$name $winRun raka segrar';
     if (wins5 >= 4) return '$name $wins5 segrar av 5';
-    if (unbeatenRun >= 5 && wins5 >= 3) return '$name obesegrade i $unbeatenRun ($wins5 segrar)';
-    return null;
+    if (unbeatenRun >= 5) return '$name obesegrade i $unbeatenRun';
+    return _pts(name);
   }
 
-  /// Dålig form: 3+ raka förluster, eller 4 förluster av 5, eller utan seger i 5 och högst 2 poäng.
-  String? bad(String name) {
-    if (last.length < 4) return null;
+  String badText(String name) {
     if (lossRun >= 3) return '$name $lossRun raka förluster';
     if (losses5 >= 4) return '$name $losses5 förluster av 5';
-    if (winlessRun >= 5 && points5 <= 2) return '$name utan seger i $winlessRun';
-    return null;
+    if (winlessRun >= 4) return '$name utan seger i $winlessRun';
+    return _pts(name);
+  }
+}
+
+/// Formstyrka 0..100 för att tippa [t] mot [o], eller null om formen inte räcker.
+/// Krav: det tipsade laget tar minst 55 % av poängen senaste 6 och minst
+/// 30 procentenheter mer än motståndaren.
+(double, String)? _sideStrength(_Form t, String tName, _Form o, String oName) {
+  if (t.n6 < 4 || o.n6 < 4) return null;
+  final diff = t.ppgShare - o.ppgShare;
+  if (t.ppgShare < 0.55 || diff < 0.30) return null;
+  var score = 50 * t.ppgShare + 50 * (1 - o.ppgShare);
+  if (t.winRun >= 3) score += 5 + 2 * (t.winRun - 3);
+  if (o.lossRun >= 3) score += 5 + 2 * (o.lossRun - 3);
+  return (score.clamp(0, 100).toDouble(), '${t.goodText(tName)}, ${o.badText(oName)}');
+}
+
+/// Målrika lag: Ö2.5 i minst hälften av matcherna, minst 2.7 mål per match,
+/// och laget både gör och släpper in mål.
+(double, String)? _overStrength(_Form h, String hName, _Form a, String aName) {
+  String? one(_Form f, String name) {
+    if (f.n6 < 4) return null;
+    final ok = f.over6 * 2 >= f.n6 && f.gf6 + f.ga6 >= 2.7 && f.gf6 >= 0.8 && f.ga6 >= 0.8;
+    return ok ? '$name: Ö2.5 i ${f.over6}/${f.n6}, ${(f.gf6 + f.ga6).toStringAsFixed(1)} mål/match' : null;
   }
 
-  /// Målrikt: Över 2.5 i 4+ av 6, snitt 3+ mål per match, och laget både gör och släpper in mål.
-  String? goalRich(String name) {
-    if (n6 < 4) return null;
-    final ok = over6 >= (n6 * 2 / 3).ceil() && gf6 + ga6 >= 3.0 && gf6 >= 1.0 && ga6 >= 1.0;
-    return ok ? '$name: Ö2.5 i $over6/$n6, ${(gf6 + ga6).toStringAsFixed(1)} mål/match' : null;
+  final rh = one(h, hName), ra = one(a, aName);
+  if (rh == null || ra == null) return null;
+  final share = (h.over6 / h.n6 + a.over6 / a.n6) / 2;
+  final goals = (h.gf6 + h.ga6 + a.gf6 + a.ga6) / 2;
+  final score = 70 * share + 10 * (goals - 2.5).clamp(0, 3);
+  return (score.clamp(0, 100).toDouble(), '$rh. $ra');
+}
+
+/// Båda gör mål: BLGM i minst hälften av matcherna, laget har gjort mål i
+/// nästan alla och släppt in i minst hälften.
+(double, String)? _bttsStrength(_Form h, String hName, _Form a, String aName) {
+  String? one(_Form f, String name) {
+    if (f.n6 < 4) return null;
+    final ok = f.btts6 * 2 >= f.n6 && f.scored6 >= f.n6 - 2 && f.conceded6 * 2 >= f.n6;
+    return ok ? '$name: BLGM i ${f.btts6}/${f.n6}, gjort mål i ${f.scored6}' : null;
   }
 
-  /// Båda gör mål: BLGM i 4+ av 6, laget har gjort mål i 5+ och släppt in i 4+.
-  String? bothScore(String name) {
-    if (n6 < 4) return null;
-    final ok = btts6 >= (n6 * 2 / 3).ceil() && scored6 >= n6 - 1 && conceded6 >= (n6 * 2 / 3).ceil();
-    return ok ? '$name: BLGM i $btts6/$n6, gjort mål i $scored6' : null;
-  }
+  final rh = one(h, hName), ra = one(a, aName);
+  if (rh == null || ra == null) return null;
+  final share = (h.btts6 / h.n6 + a.btts6 / a.n6) / 2;
+  final scored = (h.scored6 / h.n6 + a.scored6 / a.n6) / 2;
+  final score = 70 * share + 30 * scored;
+  return (score.clamp(0, 100).toDouble(), '$rh. $ra');
 }
 
 /// Kollar vilka speltyper som stöds av formen i lagens senaste 6 matcher.
 FormSignals formSignals(String homeName, TeamProfile? home, String awayName, TeamProfile? away) {
   final h = _Form(home), a = _Form(away);
-  final r = <BetType, String>{};
+  final r = <BetType, (double, String)>{};
+  void put(BetType t, (double, String)? v) {
+    if (v != null) r[t] = v;
+  }
 
-  final hGood = h.good(homeName), aBad = a.bad(awayName);
-  if (hGood != null && aBad != null) r[BetType.home] = '$hGood, $aBad';
-  final aGood = a.good(awayName), hBad = h.bad(homeName);
-  if (aGood != null && hBad != null) r[BetType.away] = '$aGood, $hBad';
-
-  final hg = h.goalRich(homeName), ag = a.goalRich(awayName);
-  if (hg != null && ag != null) r[BetType.over25] = '$hg. $ag';
-
-  final hb = h.bothScore(homeName), ab = a.bothScore(awayName);
-  if (hb != null && ab != null) r[BetType.bttsYes] = '$hb. $ab';
-
+  put(BetType.home, _sideStrength(h, homeName, a, awayName));
+  put(BetType.away, _sideStrength(a, awayName, h, homeName));
+  put(BetType.over25, _overStrength(h, homeName, a, awayName));
+  put(BetType.bttsYes, _bttsStrength(h, homeName, a, awayName));
   return FormSignals(r);
 }

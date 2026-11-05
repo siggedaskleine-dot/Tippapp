@@ -419,6 +419,17 @@ void main() {
       expect(formSignals('Malmö', hot, 'X', mid).allows(BetType.home), isFalse);
     });
 
+    test('klart bättre poängform räcker utan svit, och styrkan sorterar', () {
+      final good = team([(1, 0), (1, 1), (2, 1), (0, 1), (2, 0), (1, 1)]);
+      final weak = team([(0, 1), (1, 1), (0, 2), (2, 1), (0, 0), (1, 2)]);
+      final s = formSignals('A', good, 'B', weak);
+      expect(s.allows(BetType.home), isTrue);
+      expect(s.reason(BetType.home), contains('11 av 18 p'));
+      final hot = team([(2, 0), (3, 1), (1, 0), (2, 1), (1, 0), (2, 2)]);
+      final cold = team([(0, 2), (1, 3), (0, 1), (0, 2), (1, 2), (0, 0)]);
+      expect(formSignals('C', hot, 'D', cold).strength(BetType.home)!, greaterThan(s.strength(BetType.home)!));
+    });
+
     test('målrika lag ger Ö2.5 och BLGM', () {
       final a = team([(2, 2), (3, 1), (1, 2), (2, 1), (0, 1), (3, 3)]);
       final b = team([(1, 3), (2, 2), (4, 1), (1, 1), (2, 3), (1, 2)]);
@@ -439,7 +450,13 @@ void main() {
           expect(t.formReason, isNotNull);
           expect(t.comment, startsWith('Formspel:'));
           expect(t.deepAnalysis.first, startsWith('Formspel:'));
+          expect(t.formStrength, isNotNull);
         }
+      }
+      final shown = day.tips.where((t) => t.formStrength != null).toList();
+      sortTips(shown, SortBy.form);
+      for (var i = 1; i < shown.length; i++) {
+        expect(shown[i - 1].formStrength!, greaterThanOrEqualTo(shown[i].formStrength!));
       }
     });
   });

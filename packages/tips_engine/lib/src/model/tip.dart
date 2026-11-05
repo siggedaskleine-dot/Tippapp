@@ -94,6 +94,9 @@ class MatchTip {
   /// null när tipset inte är ett formspel.
   final String? formReason;
 
+  /// Formstyrka 0..100 för formspel (styr sortering efter form).
+  final double? formStrength;
+
   const MatchTip({
     required this.fixture,
     required this.prediction,
@@ -112,6 +115,7 @@ class MatchTip {
     this.awayProfile,
     this.deepAnalysis = const [],
     this.formReason,
+    this.formStrength,
   });
 
   /// Det minsta antalet spelade matcher i säsongen av de två lagen.
@@ -121,7 +125,7 @@ class MatchTip {
 
   /// Formvärde för sortering, kopplat till tipset: hemmalagets form för 1,
   /// bortalagets för 2, annars snittet av båda.
-  double get formScore => switch (tip.type) {
+  double get formScore => formStrength != null ? formStrength! / 100 : switch (tip.type) {
         BetType.home => formScoreHome,
         BetType.away => formScoreAway,
         BetType.draw => 1 - (formScoreHome - formScoreAway).abs(),
@@ -156,6 +160,7 @@ class MatchTip {
         'inOddsWindow': inOddsWindow,
         'deepAnalysis': deepAnalysis,
         'formReason': formReason,
+        'formStrength': formStrength,
         'streaks': [for (final s in streaks) {'text': s.text, 'kind': s.kind.name}],
         'bookmaker': odds?.bookmaker,
         'prediction': prediction.toJson(),

@@ -108,7 +108,7 @@ class _MatchCardState extends State<MatchCard> {
                   _ProbBar(p: t.tip.probability, color: rc),
                   const SizedBox(height: 12),
                   if (t.formReason != null) ...[
-                    FormBadge(t.formReason!),
+                    FormBadge(t.formReason!, strength: t.formStrength),
                     const SizedBox(height: 10),
                   ],
                   Text(t.analysis.isEmpty ? t.comment : t.analysis,
@@ -267,7 +267,8 @@ class TeamLogo extends StatelessWidget {
 /// Visar varför tipset är ett formspel, t.ex. "Malmö 4 raka segrar, Sirius 3 raka förluster".
 class FormBadge extends StatelessWidget {
   final String reason;
-  const FormBadge(this.reason, {super.key});
+  final double? strength;
+  const FormBadge(this.reason, {super.key, this.strength});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -284,7 +285,9 @@ class FormBadge extends StatelessWidget {
           Expanded(
             child: Text.rich(
               TextSpan(children: [
-                const TextSpan(text: 'Formspel  ', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4ADE80))),
+                TextSpan(
+                    text: strength == null ? 'Formspel  ' : 'Form ${strength!.round()}  ',
+                    style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4ADE80))),
                 TextSpan(text: reason),
               ]),
               style: const TextStyle(fontSize: 12, height: 1.35, color: Color(0xFFDDE6F5)),

@@ -180,7 +180,7 @@ class TipsEngine {
         ...h2hStreaks(f.home, f.away, h2h[f.id] ?? const []),
       ]);
       for (final MapEntry(key: m, value: (tip, alts, inWindow)) in per.entries) {
-        final formReason = signals.reasons[tip.type];
+        final formReason = signals.reason(tip.type);
         final deep = buildDeepAnalysis(
           f: f,
           p: p,
@@ -212,11 +212,12 @@ class TipsEngine {
           deepAnalysis: [
             if (formReason != null) 'Formspel: $formReason.',
             if (formReason == null && requireForm)
-              'Formkrav ej uppfyllt: inget lag har tydlig vinst- eller förlustsvit mot motståndet, '
+              'Formkrav ej uppfyllt: inget lag har klart bättre form än motståndet, '
                   'och lagen är inte båda med i målrika matcher.',
             ...deep,
           ],
           formReason: formReason,
+          formStrength: signals.strength(tip.type),
         ));
       }
     }
