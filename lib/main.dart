@@ -9,6 +9,7 @@ import 'package:tips_engine/tips_engine.dart';
 import 'facit_page.dart';
 import 'history.dart';
 import 'match_card.dart';
+import 'other_tips_page.dart';
 import 'repository.dart';
 import 'theme.dart';
 
@@ -253,6 +254,11 @@ class _HomePageState extends State<HomePage> {
             padding: EdgeInsets.all(12),
             child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
           ),
+        IconButton(
+          tooltip: 'Andra speltips',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OtherTipsPage())),
+          icon: const Icon(Icons.public_rounded, color: AppColors.accent2),
+        ),
         IconButton(
           tooltip: 'Facit',
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
