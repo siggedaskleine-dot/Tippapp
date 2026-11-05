@@ -430,6 +430,38 @@ void main() {
       expect(formSignals('C', hot, 'D', cold).strength(BetType.home)!, greaterThan(s.strength(BetType.home)!));
     });
 
+    test('hemmaform mot bortaform i första hand, annars total form', () {
+      TeamProfile mixed(List<(int, int, bool)> res) {
+        final p = TeamProfile(1);
+        var d = DateTime(2026, 10, 30);
+        for (final (gf, ga, home) in res) {
+          p.matches.add(RecentMatch(d, 'X', home, gf, ga));
+          d = d.subtract(const Duration(days: 4));
+        }
+        return p;
+      }
+
+      // Starkt hemma, svagt borta: totalt medelmåttigt.
+      final homeStrong = mixed([
+        for (var i = 0; i < 6; i++) ...[(2, 0, true), (0, 2, false)],
+      ]);
+      // Svagt borta, starkt hemma.
+      final awayWeak = mixed([
+        for (var i = 0; i < 6; i++) ...[(0, 2, false), (2, 0, true)],
+      ]);
+      final s = formSignals('A', homeStrong, 'B', awayWeak);
+      expect(s.allows(BetType.home), isTrue);
+      expect(s.reason(BetType.home), contains('A (hemma)'));
+      expect(s.reason(BetType.home), contains('B (borta)'));
+      // Bytt plats: B hemma är starkt, A borta svagt, så 2:an är inget formspel.
+      expect(formSignals('B', awayWeak, 'A', homeStrong).allows(BetType.away), isFalse);
+      // Utan bortamatcher används total form.
+      final onlyHome = team([(2, 0), (3, 1), (1, 0), (2, 1), (1, 0), (2, 2)]);
+      final cold = team([(0, 2), (1, 3), (0, 1), (0, 2), (1, 2), (0, 0)]);
+      final t = formSignals('C', cold, 'D', onlyHome);
+      expect(t.reason(BetType.away), contains('D (totalt)'));
+    });
+
     test('målrika lag ger Ö2.5 och BLGM', () {
       final a = team([(2, 2), (3, 1), (1, 2), (2, 1), (0, 1), (3, 3)]);
       final b = team([(1, 3), (2, 2), (4, 1), (1, 1), (2, 3), (1, 2)]);

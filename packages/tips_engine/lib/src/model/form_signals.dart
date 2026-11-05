@@ -17,7 +17,18 @@ class FormSignals {
 
 class _Form {
   final List<RecentMatch> last;
-  _Form(TeamProfile? p, [int n = 6]) : last = p?.recent(Venue.all, n) ?? const [];
+
+  /// 'hemma', 'borta' eller 'totalt': vilka matcher formen bygger på.
+  final String basis;
+  _Form._(this.last, this.basis);
+
+  /// Hemma- eller bortaformen om laget har minst [minMatches] sådana matcher,
+  /// annars formen i alla matcher.
+  factory _Form(TeamProfile? p, Venue venue, {int n = 6, int minMatches = 4}) {
+    final v = p?.recent(venue, n) ?? const <RecentMatch>[];
+    if (v.length >= minMatches) return _Form._(v, venue == Venue.home ? 'hemma' : 'borta');
+    return _Form._(p?.recent(Venue.all, n) ?? const [], 'totalt');
+  }
 
   int _run(bool Function(RecentMatch) test) {
     var n = 0;
@@ -117,7 +128,10 @@ class _Form {
 
 /// Kollar vilka speltyper som stöds av formen i lagens senaste 6 matcher.
 FormSignals formSignals(String homeName, TeamProfile? home, String awayName, TeamProfile? away) {
-  final h = _Form(home), a = _Form(away);
+  // I första hand hemmalagets hemmaform mot bortalagets bortaform.
+  final h = _Form(home, Venue.home), a = _Form(away, Venue.away);
+  homeName = '$homeName (${h.basis})';
+  awayName = '$awayName (${a.basis})';
   final r = <BetType, (double, String)>{};
   void put(BetType t, (double, String)? v) {
     if (v != null) r[t] = v;
