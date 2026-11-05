@@ -40,4 +40,15 @@ void main() {
   test('HTML är inget flöde', () {
     expect(parseFeed('<html><body>hej</body></html>', 'Z'), isNull);
   });
+
+  test('bara speltips, inte vanliga sportnyheter', () {
+    FeedItem f(String t, [String s = '', String l = 'https://x.se/a']) =>
+        FeedItem(source: 'X', title: t, summary: s, link: l);
+    expect(isBettingTip(f('Speltips: så spelar vi Stryktipset')), isTrue);
+    expect(isBettingTip(f('Arsenal vs Chelsea Prediction and Betting Tips')), isTrue);
+    expect(isBettingTip(f('Dagens spel', 'Över 2.5 mål i Bundesliga')), isTrue);
+    expect(isBettingTip(f('Ny tränare klar för AIK')), isFalse);
+    expect(isBettingTip(f('Spelaren skadad inför derbyt', 'Han missar matchen')), isFalse);
+    expect(isBettingTip(f('Hammarby vann igen', '', 'https://x.se/sport/fotboll/123')), isFalse);
+  });
 }

@@ -9,9 +9,9 @@ import 'web_page.dart';
 
 const _builtIn = [
   TipSource('Aftonbladet Spel', 'Sportbladets speltips och analyser', 'https://www.aftonbladet.se/sportbladet/spel',
-      feeds: ['https://rss.aftonbladet.se/rss2/small/pages/sections/sportbladet/'], onlyBetting: true),
+      feeds: ['https://rss.aftonbladet.se/rss2/small/pages/sections/sportbladet/']),
   TipSource('Expressen Spel', 'Expressens speltips', 'https://www.expressen.se/sport/spel/',
-      feeds: ['https://feeds.expressen.se/sport/'], onlyBetting: true),
+      feeds: ['https://feeds.expressen.se/sport/']),
   TipSource('Raka och klart', 'Svenska speltips', 'https://rakaochklart.se/'),
   TipSource('BetShoot', 'Dagliga fotbollstips från tipsare', 'https://www.betshoot.com/'),
   TipSource('BetRush', 'Fotbollstips och prediktioner', 'https://www.betrush.com/'),
@@ -170,14 +170,14 @@ class _OtherTipsPageState extends State<OtherTipsPage> {
                 else if (_items.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: 60),
-                    child: Text('Hittade inga flöden just nu. Dra nedåt för att försöka igen, eller öppna sidorna under "Sidor".',
+                    child: Text('Hittade inga speltips i flödena just nu. Dra nedåt för att försöka igen, eller öppna sidorna under "Sidor".',
                         textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)),
                   ),
                 for (final i in shown) _FeedCard(item: i, onTap: () => openInApp(context, i.link, i.source)),
                 if (!_loading && _missing.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: Text('Utan flöde (öppna under Sidor): ${_missing.join(', ')}',
+                    child: Text('Inga speltips i flödet just nu (öppna under Sidor): ${_missing.join(', ')}',
                         style: const TextStyle(color: AppColors.muted, fontSize: 12)),
                   ),
               ],

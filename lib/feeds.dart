@@ -34,13 +34,22 @@ class TipSource {
   final bool onlyBetting;
   final bool custom;
   const TipSource(this.name, this.description, this.url,
-      {this.feeds = const [], this.onlyBetting = false, this.custom = false});
+      {this.feeds = const [], this.onlyBetting = true, this.custom = false});
 }
 
-final _bettingWords = RegExp(
-  r'spel|tips|odds|stryktips|europatips|topptips|bet|v75|v86|bomben|måltips|lång|trav',
+/// Ord som visar att en artikel är ett speltips och inte en vanlig nyhet.
+final _tipWords = RegExp(
+  r"\b(speltips|spelförslag|spelguide|tips(et|en)?|dagens spel|veckans spel|odds(en|et)?|stryktips(et)?|europatips(et)?|"
+  r"topptips(et)?|måltips(et)?|bomben|powerplay|matchen(s)? spel|spelvärde|långtidsspel|"
+  r"betting|bet of the day|best bets?|prediction(s)?|predictions? (and|&) tips|tip(s)? for|preview (and|&) prediction|"
+  r"over 2[.,]5|under 2[.,]5|över 2[.,]5|under 2[.,]5 mål|btts|both teams to score|båda lagen gör mål|1x2|"
+  r"accumulator|acca|value bet|odds boost)\b",
   caseSensitive: false,
 );
+
+/// Sant om artikeln ser ut som ett speltips.
+bool isBettingTip(FeedItem i) => _tipWords.hasMatch('${i.title} ${i.summary}') ||
+    RegExp(r'(speltips|/spel/|/tips/|prediction|betting-tips|/odds)', caseSensitive: false).hasMatch(i.link);
 
 String _stripHtml(String s) {
   var t = s.replaceAll(RegExp(r'<[^>]*>'), ' ');
@@ -217,10 +226,8 @@ class FeedService {
       items = null;
     }
     var out = items ?? const <FeedItem>[];
-    if (s.onlyBetting) {
-      final betting = out.where((i) => _bettingWords.hasMatch('${i.title} ${i.summary} ${i.link}')).toList();
-      if (betting.isNotEmpty) out = betting;
-    }
+    // Bara speltips, inga vanliga sportnyheter. Hittas inga tips blir listan tom.
+    if (s.onlyBetting) out = out.where(isBettingTip).toList();
     out = out.where((i) => i.title.isNotEmpty && i.link.isNotEmpty).take(15).toList();
     _memo[s.url] = (DateTime.now(), out);
     return out;
